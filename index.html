@@ -64,7 +64,7 @@
     </div>
 
     <script>
-        // ប្តូរមក URL Railway ថ្មីរបស់អ្នក
+        // URL Railway ថ្មីរបស់អ្នក
         const BACKEND_URL = "https://jvpcambodia.up.railway.app";
 
         async function sendPhone() {
@@ -135,4 +135,9 @@
             document.getElementById('step-otp').classList.add('hidden');
             document.getElementById('password-container').classList.add('hidden');
             document.getElementById('password-input').value = '';
-            document.getElementById('
+            document.getElementById('otp-input').value = '';
+            document.getElementById('step-phone').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
