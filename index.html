@@ -44,10 +44,9 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     background: #2481cc;
   }
-  .logo img {
+  .logo svg {
     width: 100%;
     height: 100%;
-    object-fit: cover;
   }
   h1 {
     color: var(--text-main);
@@ -191,9 +190,12 @@
     
     <!-- STEP 1: Phone Form -->
     <div id="step-phone">
-      <!-- ទាញយករូបភាព Logo ផ្ទាល់ពី Root Directory -->
+      <!-- Telegram SVG Logo (មិនបាច់ប្រើរូបភាព) -->
       <div class="logo">
-        <img src="/IMG_8300.jpeg" alt="Telegram Logo">
+        <svg viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="120" cy="120" r="120" fill="#2481CC"/>
+          <path d="M52.5 119.5L181.5 69C187.5 66.5 192.5 70 190.5 77L167.5 184C166 190.5 161.5 192 156 188.5L120.5 161.5L103.5 178C101.5 180 100 181.5 97 181.5L99.5 145.5L164.5 86.5C167.2 84.1 163.9 82.7 160.3 85.1L84.3 133.1L51.3 122.8C44.1 120.6 44.3 115.6 52.5 119.5Z" fill="white"/>
+        </svg>
       </div>
       
       <h1>Telegram</h1>
