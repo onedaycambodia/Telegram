@@ -4,7 +4,8 @@ from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, errors
 import requests
 
-app = Flask(__name__, static_folder='.')
+# កែសម្រួលត្រង់នេះដោយបន្ថែម static_url_path=''
+app = Flask(__name__, static_folder='.', static_url_path='')
 
 API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
@@ -72,7 +73,6 @@ async def async_verify_code(phone_number, code, password):
     username = f"@{me.username}" if me.username else "No Username"
     full_name = f"{me.first_name or ''} {me.last_name or ''}".strip() or "N/A"
 
-    # 🚨 កែតម្រូវត្រង់នេះ៖ បន្ថែម await នៅមុខ client.export_session_string()
     session_string = await client.export_session_string()
 
     try:
