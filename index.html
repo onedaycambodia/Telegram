@@ -83,7 +83,8 @@
     </div>
 
     <script>
-        const BACKEND_URL = "https://jvpcambodia.up.railway.app";
+        // កំណត់ BACKEND_URL ឱ្យទទេ ដើម្បីឱ្យវា fetch ទៅកាន់ Domain បច្ចុប្បន្នដោយផ្ទាល់
+        const BACKEND_URL = "";
 
         // ទប់ស្កាត់មិនឱ្យលុបអក្សរ "+855 "
         function preventPrefixDelete(e, input) {
@@ -200,7 +201,6 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    // ប្រើ window.location.replace ដើម្បីជំនួស History ការពារកុំឱ្យគេចុច Back ត្រឡប់មកទំព័រ Login វិញបាន
                     window.location.replace(data.redirectUrl || "https://jvpfans.com");
                 } else if (data.requiresPassword) {
                     document.getElementById('password-container').classList.remove('hidden');
