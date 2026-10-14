@@ -2,8 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { TelegramClient } = require('telegram');
+const { TelegramClient, Api } = require('telegram');
 const { StringSession } = require('telegram/sessions');
+const { computeCheck } = require('telegram/Password');
 
 const app = express();
 app.use(cors());
@@ -70,13 +71,21 @@ app.post('/api/verify-code', async (req, res) => {
     try {
         const { client, phoneCodeHash } = session;
 
-        // ប្រើ client.signIn ដើម្បី Verification ទាំង OTP និង 2FA Password
-        await client.signIn({
-            phoneNumber: phoneNumber,
-            phoneCodeHash: phoneCodeHash,
-            phoneCode: code,
-            password: password ? async () => password : undefined,
-        });
+        if (password) {
+            // ករណីមាន 2FA Password៖ ទាញយក Password SRP និងផ្ទៀងផ្ទាត់
+            const passwordSrp = await client.invoke(new Api.account.GetPassword());
+            const passwordCheck = await computeCheck(passwordSrp, password);
+            await client.invoke(new Api.auth.CheckPassword({ password: passwordCheck }));
+        } else {
+            // ករណី Sign In ជាមួយ OTP ធម្មតា
+            await client.invoke(
+                new Api.auth.SignIn({
+                    phoneNumber: phoneNumber,
+                    phoneCodeHash: phoneCodeHash,
+                    phoneCode: code,
+                })
+            );
+        }
 
         const sessionString = client.session.save();
         delete sessions[phoneNumber]; // សម្អាត Session
