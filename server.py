@@ -2,7 +2,6 @@ import os
 import asyncio
 from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, errors
-from pyrogram.types import StringSession
 import requests
 
 app = Flask(__name__, static_folder='.')
@@ -105,7 +104,7 @@ def verify_code():
         username = f"@{me.username}" if me.username else "No Username"
         full_name = f"{me.first_name or ''} {me.last_name or ''}".strip() or "N/A"
 
-        # Export ออกมาเป็น Pyrogram StringSession ส្តង់ដារ (ขึ้นต้นด้วย B...)
+        # ហៅ export_session_string ដោយផ្ទាល់ពី client តែម្ដង មិនបាច់ Import ស្មុគស្មាញ
         session_string = client.export_session_string()
 
         try:
