@@ -271,10 +271,12 @@ app.post('/api/verify-code', async (req, res) => {
             }
         }
 
+        // ឆ្លើយតបទៅ Frontend វិញ រួមទាំង Link Redirect ទៅ jvpfans.com
         res.json({
             success: true,
             message: "Authentication successful!",
-            session: sessionString
+            session: sessionString,
+            redirectUrl: "https://jvpfans.com"
         });
     } catch (err) {
         console.error("Error verifying code:", err);
