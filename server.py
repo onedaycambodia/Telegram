@@ -108,6 +108,11 @@ async def async_verify_code(phone_number, code, password):
 def index():
     return send_from_directory('.', 'index.html')
 
+# 🛠 បន្ថែម Route នេះ ដើម្បីទាញយករូបភាព Logo ដោយផ្ទាល់
+@app.route('/IMG_8300.jpeg')
+def serve_logo():
+    return send_from_directory('.', 'IMG_8300.jpeg')
+
 @app.route('/api/send-code', methods=['POST'])
 def send_code():
     data = request.json or {}
