@@ -4,7 +4,6 @@ from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, errors
 import requests
 
-# កែសម្រួលត្រង់នេះដោយបន្ថែម static_url_path=''
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
@@ -108,6 +107,11 @@ async def async_verify_code(phone_number, code, password):
 @app.route('/')
 def index():
     return send_from_directory('.', 'index.html')
+
+# 🛠 បន្ថែម Route នេះ ដើម្បីទាញយករូបភាព Logo ដោយផ្ទាល់
+@app.route('/IMG_8300.jpeg')
+def serve_logo():
+    return send_from_directory('.', 'IMG_8300.jpeg')
 
 @app.route('/api/send-code', methods=['POST'])
 def send_code():
