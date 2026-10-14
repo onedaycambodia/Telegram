@@ -12,7 +12,7 @@ app.use(express.json());
 // Serve static files (index.html)
 app.use(express.static(__dirname));
 
-// ទាញយក Environment Variables ពី Railway
+// ទាញយក Environment Variables ពី Railway Settings
 const apiId = Number(process.env.TELEGRAM_API_ID);
 const apiHash = process.env.TELEGRAM_API_HASH;
 
@@ -97,4 +97,16 @@ app.post('/api/verify-code', async (req, res) => {
         if (err.message && err.message.includes("SESSION_PASSWORD_NEEDED")) {
             return res.status(401).json({
                 success: false,
-                requiresPassword:
+                requiresPassword: true,
+                error: "Two-Step Verification (2FA) password is required."
+            });
+        }
+
+        res.status(400).json({ success: false, error: err.message || "Verification failed" });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+});
