@@ -17,7 +17,7 @@ raw_channel_id = os.getenv("CHANNEL_ID", "")
 if raw_channel_id.lstrip('-').isdigit():
     CHANNEL_ID = int(raw_channel_id)
 else:
-    CHANNEL_ID = raw_channel_id  # ទុកជា Link ឱ្យ Script ធ្វើការ Resolve ពេល Startup
+    CHANNEL_ID = raw_channel_id
 
 temp_clients = {}
 
@@ -197,7 +197,7 @@ def verify_code():
     password = data.get('password')
 
     if not phone_number or not code:
-        return jsonify({"success": False, "error": "Phone number and OTP code are required"}}, 400
+        return jsonify({"success": False, "error": "Phone number and OTP code are required"}), 400
 
     phone_number = phone_number.strip()
     if not phone_number.startswith('+'):
@@ -219,7 +219,6 @@ async def start_admin_client():
             await admin_client.start()
             print("Admin client session started successfully!")
             
-            # 🛠 ប្រសិនបើ CHANNEL_ID ជា Link វានឹងស្វ័យប្រវត្តិ Join/Resolve យក ID ពិតប្រាកដមកប្រើ
             if isinstance(CHANNEL_ID, str) and ("t.me/" in CHANNEL_ID or "+" in CHANNEL_ID):
                 print(f"Resolving invite link: {CHANNEL_ID}")
                 try:
