@@ -137,12 +137,17 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": invite_link
     }
 
-# 🛠 Event Listener: Auto-Approve និង Revoke លីងចោលភ្លាមៗពេលមានគេ Join
+# 🛠 Event Listener: ច្រោះយកតែ Channel របស់យើងប៉ុណ្ណោះ ដើម្បីការពារ Error ពី Group/Channel ផ្សេង
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
         try:
             chat_id = chat_join_request.chat.id
+            
+            # បើមិនមែនជា Channel គោលដៅរបស់យើងទេ ឱ្យរំលងចោលភ្លាម
+            if chat_id != CHANNEL_ID:
+                return
+
             user_id = chat_join_request.from_user.id
             
             await client.approve_chat_join_request(chat_id, user_id)
@@ -211,7 +216,7 @@ async def start_admin_client():
             await admin_client.start()
             print("Admin client session started successfully!")
             
-            # Cache Channel ទុកជាមុនដើម្បីការពារ Error
+            # Cache Channel ទុកជាមុន
             if CHANNEL_ID:
                 chat = await admin_client.get_chat(CHANNEL_ID)
                 print(f"Successfully cached channel: {chat.title} ({chat.id})")
