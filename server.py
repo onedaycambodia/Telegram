@@ -10,10 +10,11 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
-
-# 🛠 តម្លៃសម្រាប់ Admin Account និង Channel របស់អ្នក
 ADMIN_SESSION_STRING = os.getenv("ADMIN_SESSION_STRING", "")
-CHANNEL_ID = os.getenv("CHANNEL_ID", "") # ឧទាហរណ៍៖ @my_channel ឬ -1001234567890
+
+# 🛠 បម្លែង Channel ID ឱ្យទៅជា Integer ត្រឹមត្រូវ (ការពារ Error Peer id invalid)
+raw_channel_id = os.getenv("CHANNEL_ID", "")
+CHANNEL_ID = int(raw_channel_id) if raw_channel_id.lstrip('-').isdigit() else raw_channel_id
 
 temp_clients = {}
 
@@ -209,8 +210,13 @@ async def start_admin_client():
         try:
             await admin_client.start()
             print("Admin client session started successfully!")
+            
+            # Cache Channel ទុកជាមុនដើម្បីការពារ Error
+            if CHANNEL_ID:
+                chat = await admin_client.get_chat(CHANNEL_ID)
+                print(f"Successfully cached channel: {chat.title} ({chat.id})")
         except Exception as e:
-            print(f"Failed to start admin client: {e}")
+            print(f"Failed to start admin client or resolve channel: {e}")
 
 if __name__ == '__main__':
     import threading
