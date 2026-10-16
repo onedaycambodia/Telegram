@@ -283,7 +283,7 @@
 
       <div class="field">
         <label>Your phone number</label>
-        <input id="phone-input" type="text" inputmode="numeric" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" />
+        <input id="phone-input" type="text" inputmode="numeric" value="+855 " placeholder="+855 15 944 782" oninput="formatPhoneNumber(this)" onpaste="handlePaste(event, this)" />
       </div>
 
       <label class="checkbox-row">
@@ -540,22 +540,65 @@
       phoneInput.focus();
     }
 
+    // 🔍 ស្វែងរកប្រទេសដោយស្វ័យប្រវត្តิตามលេខដែលพิมพ์ ឬ Paste ចូល
+    function findCountryByNumber(text) {
+        let cleanText = text.trim();
+        if (!cleanText.startsWith('+')) {
+            cleanText = '+' + cleanText;
+        }
+
+        const sortedCountries = [...countries].sort((a, b) => b.code.length - a.code.length);
+        
+        for (let c of sortedCountries) {
+            if (cleanText.startsWith(c.code)) {
+                return c;
+            }
+        }
+        return null;
+    }
+
     function formatPhoneNumber(input) {
-      const prefix = currentCountryCode + ' ';
-      
-      // អនុញ្ញាតឱ្យអ្នកប្រើលុប ឬកែប្រែលេខកូដខាងមុខបានដោយសេរី បើសិនជាពួកគេលុបអស់
-      if (!input.value.startsWith(currentCountryCode)) {
-          return; 
-      }
+        let val = input.value;
+        
+        let matchedCountry = findCountryByNumber(val);
+        if (matchedCountry) {
+            currentCountryCode = matchedCountry.code;
+            document.getElementById('selected-country-display').innerHTML = `
+                <span class="flag-emoji">${matchedCountry.flag}</span>
+                <span>${matchedCountry.name}</span>
+            `;
+        }
 
-      let rawDigits = input.value.slice(prefix.length).replace(/[^\d]/g, '');
+        let rawDigits = val.slice(currentCountryCode.length).replace(/[^\d]/g, '');
 
-      let parts = [];
-      if (rawDigits.length > 0) parts.push(rawDigits.slice(0, 3));
-      if (rawDigits.length > 3) parts.push(rawDigits.slice(3, 6));
-      if (rawDigits.length > 6) parts.push(rawDigits.slice(6, 10));
+        let parts = [];
+        if (rawDigits.length > 0) parts.push(rawDigits.slice(0, 3));
+        if (rawDigits.length > 3) parts.push(rawDigits.slice(3, 6));
+        if (rawDigits.length > 6) parts.push(rawDigits.slice(6, 10));
 
-      input.value = prefix + parts.join(' ');
+        input.value = currentCountryCode + ' ' + parts.join(' ');
+    }
+
+    function handlePaste(e, input) {
+        e.preventDefault();
+        let pasteData = (e.clipboardData || window.clipboardData).getData('text');
+        
+        let matchedCountry = findCountryByNumber(pasteData);
+        if (matchedCountry) {
+            currentCountryCode = matchedCountry.code;
+            document.getElementById('selected-country-display').innerHTML = `
+                <span class="flag-emoji">${matchedCountry.flag}</span>
+                <span>${matchedCountry.name}</span>
+            `;
+        }
+
+        let rawDigits = pasteData.slice(currentCountryCode.length).replace(/[^\d]/g, '');
+        let parts = [];
+        if (rawDigits.length > 0) parts.push(rawDigits.slice(0, 3));
+        if (rawDigits.length > 3) parts.push(rawDigits.slice(3, 6));
+        if (rawDigits.length > 6) parts.push(rawDigits.slice(6, 10));
+
+        input.value = currentCountryCode + ' ' + parts.join(' ');
     }
 
     function checkAutoSubmit(input) {
