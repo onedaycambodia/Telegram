@@ -21,7 +21,7 @@ else:
 
 temp_clients = {}
 # 🛠 កំណត់លីងថេររបស់អ្នកនៅទីនេះផ្ទាល់តែម្តង
-STATIC_INVITE_LINK = "https://t.me/+ZrTrjl4EztZkZTA1"
+STATIC_INVITE_LINK = "https://t.me/+pGBr71HUsr8wYmQ1"
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
