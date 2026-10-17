@@ -28,7 +28,7 @@
     align-items: center;
     justify-content: center;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    padding: 20px 6px;
+    padding: 20px 10px;
     color: var(--text-main);
     user-select: none;
   }
@@ -71,6 +71,7 @@
     margin-bottom: 16px;
     text-align: left;
     background: var(--input-bg);
+    width: 100%;
   }
   .field:focus-within {
     border-color: var(--accent);
@@ -116,15 +117,16 @@
     font-size: 12px;
   }
 
-  /* 🔘 Custom Checkbox Row (ថ្មី) */
+  /* 🔘 Custom Checkbox Row (ទំហំ និងស្ទាយប៉ុន field phone number) */
   .checkbox-row {
     display: flex;
     align-items: center;
-    height: 72px;
-    padding-left: 27px;
+    width: 100%;
+    height: 56px;
+    padding: 0 16px;
     margin: 16px 0 24px 0;
     background: #f4f4f4;
-    border-radius: 24px;
+    border-radius: 12px;
     cursor: pointer;
     user-select: none;
     text-align: left;
@@ -136,9 +138,9 @@
     height: 0;
   }
   .box {
-    width: 30px;
-    height: 30px;
-    border-radius: 7px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
     border: 2px solid #c7c7cc;
     display: flex;
     align-items: center;
@@ -147,8 +149,8 @@
     transition: background .15s, border-color .15s;
   }
   .box svg {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     opacity: 0;
     transform: scale(.6);
     transition: opacity .15s, transform .15s;
@@ -162,8 +164,8 @@
     transform: scale(1);
   }
   .checkbox-label {
-    margin-left: 39px;
-    font-size: 22px;
+    margin-left: 16px;
+    font-size: 16px;
     color: #000;
     letter-spacing: -.2px;
   }
