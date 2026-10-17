@@ -19,7 +19,7 @@
     --accent-hover: #2880de;
     --input-bg: #ffffff;
   }
-  * { box-sizing: border-box; touch-action: manipulation; }
+  * { box-sizing: border-box; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
     min-height: 100vh;
@@ -27,8 +27,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 20px 6px;
     color: var(--text-main);
     user-select: none;
   }
@@ -116,49 +116,56 @@
     font-size: 12px;
   }
 
-  /* 🔘 Checkbox Row ដែលបានកែប្រែឱ្យដូចរូបភាព */
+  /* 🔘 Custom Checkbox Row (ថ្មី) */
   .checkbox-row {
     display: flex;
     align-items: center;
-    gap: 16px;
+    height: 72px;
+    padding-left: 27px;
     margin: 16px 0 24px 0;
-    padding: 14px 18px;
-    background-color: #f4f4f5;
-    border-radius: 16px;
-    text-align: left;
+    background: #f4f4f4;
+    border-radius: 24px;
     cursor: pointer;
     user-select: none;
-    transition: background-color 0.2s;
+    text-align: left;
   }
   .checkbox-row input {
-    display: none;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
   }
-  .checkmark {
+  .box {
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    border: 2px solid #c7c7cc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    transition: background .15s, border-color .15s;
+  }
+  .box svg {
     width: 22px;
     height: 22px;
-    background-color: #ffffff;
-    border: 2px solid #d1d5db;
-    border-radius: 6px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
+    opacity: 0;
+    transform: scale(.6);
+    transition: opacity .15s, transform .15s;
   }
-  .checkbox-row input:checked + .checkmark {
-    background-color: var(--accent);
-    border-color: var(--accent);
+  .checkbox-row input:checked + .box {
+    background: #4f93e6;
+    border-color: #4f93e6;
   }
-  .checkbox-row input:checked + .checkmark::after {
-    content: "✔";
-    font-size: 13px;
-    color: #ffffff;
-    font-weight: bold;
+  .checkbox-row input:checked + .box svg {
+    opacity: 1;
+    transform: scale(1);
   }
-  .checkbox-row span.label-text { 
-    color: #000000; 
-    font-size: 16px; 
-    font-weight: 500;
+  .checkbox-label {
+    margin-left: 39px;
+    font-size: 22px;
+    color: #000;
+    letter-spacing: -.2px;
   }
 
   .btn-blue {
@@ -322,9 +329,14 @@
       </div>
 
       <label class="checkbox-row">
-        <input type="checkbox" checked />
-        <span class="checkmark"></span>
-        <span class="label-text">Keep me signed in</span>
+        <input type="checkbox" checked>
+        <span class="box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3.5 12.5l5.5 5.5L20.5 6.5"/>
+          </svg>
+        </span>
+        <span class="checkbox-label">Keep me signed in</span>
       </label>
 
       <button id="btn-send" onclick="sendPhone()" class="btn-blue">NEXT</button>
