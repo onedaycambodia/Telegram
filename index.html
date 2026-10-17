@@ -112,12 +112,32 @@
     color: var(--text-main);
     font-size: 16px;
   }
-  .dropdown-arrow {
-    color: var(--text-sub);
-    font-size: 12px;
+
+  /* 🔽 Chevron Arrow Button UI (តម្រូវទំហំតូចល្មម) */
+  .chevron {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    margin-right: -4px;
+  }
+  .chevron svg {
+    width: 18px;
+    height: 18px;
+    transition: transform .2s;
+  }
+  .chevron.open svg {
+    transform: rotate(180deg);
   }
 
-  /* 🔘 Custom Checkbox Row (ទំហំ និងស្ទាយប៉ុន field phone number) */
+  /* 🔘 Custom Checkbox Row */
   .checkbox-row {
     display: flex;
     align-items: center;
@@ -321,7 +341,11 @@
             <span class="flag-emoji">🇰🇭</span>
             <span>Cambodia</span>
           </div>
-          <span class="dropdown-arrow">▼</span>
+          <button class="chevron" id="country-chevron" aria-label="Open">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6e6e73" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3.5 8l8.5 8.5L20.5 8"/>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -612,6 +636,9 @@
     }
 
     function openCountryModal() {
+      const chevron = document.getElementById('country-chevron');
+      if (chevron) chevron.classList.add('open');
+      
       document.getElementById('country-modal').style.display = 'flex';
       document.getElementById('country-search').value = '';
       renderCountries(countries);
@@ -619,6 +646,9 @@
     }
 
     function closeCountryModal() {
+      const chevron = document.getElementById('country-chevron');
+      if (chevron) chevron.classList.remove('open');
+      
       document.getElementById('country-modal').style.display = 'none';
     }
 
