@@ -1,4 +1,4 @@
-Flask
-pyrogram==1.4.16
+flask
+pyrogram==2.0.106
 tgcrypto
 requests
