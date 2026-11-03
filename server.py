@@ -12,14 +12,14 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
-# 🛠 បំប្លែង ADMIN_CHAT_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error
+# 🛠 បំប្លែង ADMIN_CHAT_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error[span_9](start_span)[span_9](end_span)[span_10](start_span)[span_10](end_span)
 raw_admin_chat = os.getenv("ADMIN_CHAT_ID", "")
 if raw_admin_chat.lstrip('-').isdigit():
     ADMIN_CHAT_ID = int(raw_admin_chat)
 else:
     ADMIN_CHAT_ID = raw_admin_chat
 
-# 🛠 បំប្លែង TARGET_CHANNEL_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error Peer id invalid
+# 🛠 បំប្លែង TARGET_CHANNEL_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error[span_11](start_span)[span_11](end_span)[span_12](start_span)[span_12](end_span)
 raw_target = os.getenv("TARGET_CHANNEL_ID", os.getenv("ADMIN_CHAT_ID", ""))
 if raw_target.lstrip('-').isdigit():
     TARGET_CHANNEL_ID = int(raw_target)
@@ -116,10 +116,12 @@ def kick_user_from_chat(chat_id, user_id):
     if not BOT_TOKEN or not chat_id or not user_id:
         return
     try:
+        # 1. Ban User (Kick)
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/banChatMember",
             json={"chat_id": chat_id, "user_id": user_id}
         )
+        # 2. Unban User វិញភ្លាមៗ (ដើម្បីឱ្យអាច Join ឡើងវិញបាន)
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
             json={"chat_id": chat_id, "user_id": user_id, "only_if_banned": True}
@@ -341,14 +343,21 @@ async def start_services():
         await bot_client.start()
         print("Guard Bot Service started successfully!")
         
-        # Resolve និង Cache Channel ID ឱ្យ Pyrogram ស្គាល់ជាមុន ការពារ error peer id invalid
-        if TARGET_CHANNEL_ID:
+        # 🛠 ប្រើ Bot API ផ្ទាល់ដើម្បី ផ្ទៀងផ្ទាត់ និង Cache Channel ជៀសវាង Peer ID Error[span_13](start_span)[span_13](end_span)
+        if TARGET_CHANNEL_ID and BOT_TOKEN:
             try:
-                chat = await bot_client.get_chat(TARGET_CHANNEL_ID)
-                TARGET_CHANNEL_ID = chat.id
-                print(f"✅ Target Channel cached successfully: {chat.title} ({chat.id})")
+                res = requests.get(
+                    f"https://api.telegram.org/bot{BOT_TOKEN}/getChat",
+                    params={"chat_id": TARGET_CHANNEL_ID}
+                ).json()
+                
+                if res.get("ok"):
+                    chat_title = res["result"].get("title", "Target Chat")
+                    print(f"✅ Target Channel linked successfully: {chat_title} ({TARGET_CHANNEL_ID})")
+                else:
+                    print(f"⚠️ Telegram Notice: {res.get('description')}. Make sure Bot is added as ADMIN in channel {TARGET_CHANNEL_ID}")
             except Exception as e:
-                print(f"⚠️ Failed to cache target channel: {e}")
+                print(f"⚠️ Failed to link target channel: {e}")
     
     # 2. ចាប់ផ្តើម Monitor គ្រប់ Sessions ចាស់ៗក្នុង DB
     await start_all_monitors()
