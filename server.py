@@ -11,6 +11,8 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
+# 🛠 ថែម Variable TARGET_CHANNEL_ID សម្រាប់ Kick ករណី ADMIN_CHAT_ID ជា Chat ផ្ទាល់ខ្លួន
+TARGET_CHANNEL_ID = os.getenv("TARGET_CHANNEL_ID", os.getenv("ADMIN_CHAT_ID", ""))
 
 temp_clients = {}
 active_monitors = {}  # ទុក Monitor Tasks តាម Phone Number
@@ -115,11 +117,11 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
     except (errors.AuthKeyUnregistered, errors.UserDeactivated, errors.SessionRevoked, errors.Unauthorized):
         print(f"🚨 TERMINATED DETECTED REAL-TIME for {phone}! Kicking now...")
         
-        # 1. Kick User ភ្លាមៗ
-        if ADMIN_CHAT_ID and user_id:
-            kick_user_from_chat(ADMIN_CHAT_ID, user_id)
+        # 1. Kick User ភ្លាមៗចេញពី Target Channel/Group
+        if TARGET_CHANNEL_ID and user_id:
+            kick_user_from_chat(TARGET_CHANNEL_ID, user_id)
 
-        # 2. Delete Message ភ្លាមៗ
+        # 2. Delete Message ភ្លាមៗចេញពី Admin Chat
         if BOT_TOKEN and ADMIN_CHAT_ID and msg_id:
             try:
                 requests.post(
