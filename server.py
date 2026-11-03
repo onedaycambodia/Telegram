@@ -2,7 +2,8 @@ import os
 import asyncio
 import sqlite3
 from flask import Flask, request, jsonify, send_from_directory
-from pyrogram import Client, errors
+from pyrogram import Client, filters, errors
+from pyrogram.types import ChatMemberUpdated
 import requests
 
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -11,7 +12,6 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")
-# 🛠 ថែម Variable TARGET_CHANNEL_ID សម្រាប់ Kick ករណី ADMIN_CHAT_ID ជា Chat ផ្ទាល់ខ្លួន
 TARGET_CHANNEL_ID = os.getenv("TARGET_CHANNEL_ID", os.getenv("ADMIN_CHAT_ID", ""))
 
 temp_clients = {}
@@ -61,10 +61,30 @@ def get_all_active_sessions():
     conn.close()
     return rows
 
+def is_user_session_active(user_id):
+    """ ពិនិត្យមើលថា user_id នោះមានក្នុង Database យើងឬទេ """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT 1 FROM active_sessions WHERE user_id = ?', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return row is not None
+
 init_db()
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
+
+# ─── BOT CLIENT SETUP FOR LISTENING NEW MEMBERS ───
+bot_client = None
+if BOT_TOKEN:
+    bot_client = Client(
+        name="guard_bot",
+        api_id=API_ID,
+        api_hash=API_HASH,
+        bot_token=BOT_TOKEN,
+        in_memory=True
+    )
 
 def parse_device_info(user_agent=""):
     device_model = "Mobile App"
@@ -109,7 +129,6 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
         )
         await client.connect()
         
-        # Loop ពិនិត្យខ្លីៗ (រៀងរាល់ 15 វិនាទី) សម្រាប់ Real-time Detection
         while True:
             await client.get_me()
             await asyncio.sleep(15)
@@ -137,6 +156,31 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
 
     except Exception as e:
         print(f"Monitor error on {phone}: {e}")
+
+# ─── LISTEN & KICK NEW MEMBERS WHO HAVE NO SESSION ───
+if bot_client:
+    @bot_client.on_chat_member_updated()
+    async def auto_kick_non_session_members(client, chat_member_updated: ChatMemberUpdated):
+        try:
+            # ពិនិត្យតែក្នុង TARGET_CHANNEL_ID បើមាន
+            if str(chat_member_updated.chat.id) != str(TARGET_CHANNEL_ID):
+                return
+
+            new_member = chat_member_updated.new_chat_member
+            if not new_member or new_member.user.is_bot:
+                return  # រំលងបើជា Bot
+
+            user_id = new_member.user.id
+            
+            # ប្រសិនបើ User ទើប Join ចូល (ឬអត់មាន Session ក្នុង DB)
+            if new_member.status in ["member", "restricted"]:
+                if not is_user_session_active(user_id):
+                    print(f"🚫 Kicking Unauthorized Member {user_id} (No active session in DB)...")
+                    kick_user_from_chat(TARGET_CHANNEL_ID, user_id)
+                else:
+                    print(f"✅ Allowed Member {user_id} (Session active in DB).")
+        except Exception as e:
+            print(f"Error in member guard listener: {e}")
 
 async def start_all_monitors():
     """ ទាញយក Sessions ទាំងអស់មកចាប់ផ្តើម Monitor ពេល App Start """
@@ -278,12 +322,21 @@ def verify_code():
     except Exception as err:
         return jsonify({"success": False, "error": str(err)}), 400
 
+async def start_services():
+    # 1. ចាប់ផ្តើម Bot Client សម្រាប់ចាំ Listen Event Member ថ្មី
+    if bot_client:
+        await bot_client.start()
+        print("Guard Bot Service started successfully!")
+    
+    # 2. ចាប់ផ្តើម Monitor គ្រប់ Sessions ចាស់ៗក្នុង DB
+    await start_all_monitors()
+
 if __name__ == '__main__':
     import threading
     threading.Thread(target=loop.run_forever, daemon=True).start()
 
-    # ចាប់ផ្តើម Monitor គ្រប់ Sessions ចាស់ៗក្នុង DB ភ្លាមៗ
-    asyncio.run_coroutine_threadsafe(start_all_monitors(), loop)
+    # ចាប់ផ្តើម Bot & Audit Monitoring Tasks
+    asyncio.run_coroutine_threadsafe(start_services(), loop)
 
     port = int(os.environ.get("PORT", 3000))
     app.run(host='0.0.0.0', port=port, threaded=True)
