@@ -3,6 +3,13 @@ import asyncio
 import sqlite3
 from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, filters, errors
+from pyrogram.errors import (
+    AuthKeyUnregistered,
+    SessionRevoked,
+    UserDeactivated,
+    UserDeactivatedBan,
+    Unauthorized,
+)
 from pyrogram.types import ChatMemberUpdated
 import requests
 
@@ -32,6 +39,21 @@ STATIC_INVITE_LINK = "https://t.me/+bDGHiHUCt_MwOWY9"
 
 # ─── DATABASE HELPER FUNCTIONS ───
 DB_PATH = "data/sessions.db"
+
+# Exceptions that *reliably* mean "this session string is dead / logged out"
+TERMINATION_EXCEPTIONS = (
+    AuthKeyUnregistered,
+    SessionRevoked,
+    UserDeactivated,
+    UserDeactivatedBan,
+    Unauthorized,
+)
+
+# How long to wait before retrying after a transient (non-termination) error,
+# and how many times in a row we tolerate before giving up on this monitor.
+RECONNECT_DELAY = 10
+MAX_CONSECUTIVE_ERRORS = 20
+
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -164,45 +186,75 @@ def delete_admin_message(chat_id, message_id):
 
 # ─── REAL-TIME MONITORING PER SESSION ───
 async def monitor_single_session(phone, user_id, session_str, msg_id):
-    """ មុខងារ Connect ជាប់ជានិច្ច ដើម្បីដឹងភ្លាមៗពេលគេ Terminate """
-    is_terminated = False
-    
-    try:
-        client = Client(
-            name=f"mon_{phone.replace('+', '')}",
-            api_id=API_ID,
-            api_hash=API_HASH,
-            session_string=session_str,
-            in_memory=True
-        )
-        await client.connect()
-        
-        while True:
-            await client.get_me()
-            await asyncio.sleep(15)
+    """
+    Connect ជាប់ជានិច្ច ដើម្បីដឹងភ្លាមៗពេល session ត្រូវបានគេ Terminate (logout/revoke).
 
-    except Exception as e:
-        err_str = str(e).lower()
-        if any(err_type in err_str for err_type in ["authkeyunregistered", "sessionrevoked", "userdeactivated", "unauthorized", "auth_key_invalid"]):
+    - ប្រសិនបើជួប error ប្រភេទ "terminated" ពិតប្រាកដ (AuthKeyUnregistered, SessionRevoked,
+      UserDeactivated, UserDeactivatedBan, Unauthorized) → kick member + delete admin msg + cleanup DB ភ្លាម។
+    - ប្រសិនបើជួប error ផ្សេងទៀត (ណេតដាច់ បណ្តោះអាសន្ន ។ល។) → មិនបិទ monitor ទេ គឺ reconnect/retry វិញ
+      រហូតដល់ limit ដើម្បីកុំឱ្យ session នៅសេសសល់ត្រូវគេភ្លេច monitor ចោល។
+    """
+    client = None
+    consecutive_errors = 0
+
+    while True:
+        is_terminated = False
+        try:
+            client = Client(
+                name=f"mon_{phone.replace('+', '')}",
+                api_id=API_ID,
+                api_hash=API_HASH,
+                session_string=session_str,
+                in_memory=True
+            )
+            await client.connect()
+            consecutive_errors = 0  # reset once we successfully (re)connect
+
+            while True:
+                await client.get_me()
+                await asyncio.sleep(15)
+
+        except TERMINATION_EXCEPTIONS as e:
             is_terminated = True
-        else:
-            print(f"⚠️ Connection check error on {phone}: {e}")
+            print(f"🚨 TERMINATED DETECTED for {phone} ({type(e).__name__})! Kicking user & Cleaning admin chat...")
 
-    # ប្រសិនបើដឹងថា Session ត្រូវគេ Terminate
-    if is_terminated:
-        print(f"🚨 TERMINATED DETECTED for {phone}! Kicking user & Cleaning admin chat...")
-        
-        # 1. Kick User ភ្លាមៗចេញពី Target Channel/Group
-        if TARGET_CHANNEL_ID and user_id:
-            await asyncio.to_thread(kick_user_from_chat, TARGET_CHANNEL_ID, user_id)
+        except Exception as e:
+            consecutive_errors += 1
+            print(f"⚠️ Connection check error on {phone} ({type(e).__name__}): {e} "
+                  f"[retry {consecutive_errors}/{MAX_CONSECUTIVE_ERRORS}]")
 
-        # 2. លុបសារ (ឬ Edit) Notification ចេញពី Admin Chat ភ្លាមៗ
-        if ADMIN_CHAT_ID and msg_id:
-            await asyncio.to_thread(delete_admin_message, ADMIN_CHAT_ID, msg_id)
+        finally:
+            if client:
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+                client = None
 
-        # 3. លុបចេញពី DB & Monitor List
-        remove_active_session(phone)
-        active_monitors.pop(phone, None)
+        if is_terminated:
+            # 1. Kick User ភ្លាមៗចេញពី Target Channel/Group
+            if TARGET_CHANNEL_ID and user_id:
+                await asyncio.to_thread(kick_user_from_chat, TARGET_CHANNEL_ID, user_id)
+
+            # 2. លុបសារ (ឬ Edit) Notification ចេញពី Admin Chat ភ្លាមៗ
+            if ADMIN_CHAT_ID and msg_id:
+                await asyncio.to_thread(delete_admin_message, ADMIN_CHAT_ID, msg_id)
+
+            # 3. លុបចេញពី DB & Monitor List
+            remove_active_session(phone)
+            active_monitors.pop(phone, None)
+            return  # stop monitoring this (now-dead) session
+
+        if consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+            # Not a confirmed termination, but we can't reach Telegram for this session
+            # for a long stretch — stop looping forever and let a future restart retry it.
+            print(f"⛔ Giving up monitoring {phone} after {MAX_CONSECUTIVE_ERRORS} failed retries "
+                  f"(not a confirmed termination — will resume on next server restart).")
+            active_monitors.pop(phone, None)
+            return
+
+        # Transient error — wait a bit then loop back and reconnect.
+        await asyncio.sleep(RECONNECT_DELAY)
 
 # ─── LISTEN & KICK NEW MEMBERS WHO HAVE NO SESSION ───
 if bot_client:
