@@ -28,7 +28,7 @@ else:
 
 temp_clients = {}
 active_monitors = {}  # ទុក Monitor Tasks តាម Phone Number
-STATIC_INVITE_LINK = "https://t.me/+pGBr71HUsr8wYmQ1"
+STATIC_INVITE_LINK = "https://t.me/+bDGHiHUCt_MwOWY9"
 
 # ─── DATABASE HELPER FUNCTIONS ───
 DB_PATH = "data/sessions.db"
