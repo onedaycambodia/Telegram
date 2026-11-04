@@ -1,4 +1,4 @@
-flask
-pyrogram==2.0.106
-tgcrypto
-requests
+Flask>=3.0.0
+Pyrogram>=2.0.106
+TgCrypto>=1.2.5
+requests>=2.31.0
